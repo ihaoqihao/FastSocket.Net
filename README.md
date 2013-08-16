@@ -6,6 +6,9 @@ Overview
 Requirements
 ============
 .Net 4.0 or Mono 2.6
+Projects using FastSocket.Net
+============
+<a href="https://github.com/devhong/Redis.Driver.Net">Redis.Driver</a>
 Example Usage
 =============
 <p><span style="font-family: 黑体; font-size: 14pt; line-height: 1.5;">简单的命令行服务</span></p>
