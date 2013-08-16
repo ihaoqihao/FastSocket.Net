@@ -4,14 +4,11 @@ Overview
 <p>项目地址:<a href="https://github.com/devhong/FastSocket.Net">https://github.com/devhong/FastSocket.Net</a>&nbsp;(源码暂未上传)</p>
 <p>FastSocket内置了命令行、二进制、thrift协议，基于此开发了Zookeeper, Redis, Thrift等c#异步客户端，接下来将会一一公开。</p>
 <p>&nbsp;</p>
-
 Requirements
 ============
 .Net 4.0 or Mono 2.6
-
 Example Usage
 =============
-
 <p><span style="font-family: 黑体; font-size: 14pt; line-height: 1.5;">简单的命令行服务</span></p>
 <p><span style="font-size: 14pt; font-family: 黑体;"><span style="font-size: 13px;">新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用</span><br /></span></p>
 <p><span style="font-size: 14pt; font-family: 黑体;"><span style="font-size: 13px;">自定义服务实现MyService</span></span></p>
