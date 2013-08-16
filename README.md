@@ -134,15 +134,10 @@ static void Main(string[] args)
 <p>其中welcome中当连接建立时服务端发送到终端的。</p>
 <p>connection.BeginSend(PacketBuilder.ToCommandLine("welcome"));</p>
 <p>unknow command:Hello是因为没有对应的"Hello"命令实现由HandleUnKnowCommand输出的</p>
-<div class="cnblogs_code">
-<pre><span style="color: #808080;">///</span> <span style="color: #808080;">&lt;summary&gt;</span>
-<span style="color: #808080;">///</span><span style="color: #008000;"> 处理未知命令
-</span><span style="color: #808080;">///</span> <span style="color: #808080;">&lt;/summary&gt;</span>
-<span style="color: #808080;">///</span> <span style="color: #808080;">&lt;param name="connection"&gt;&lt;/param&gt;</span>
-<span style="color: #808080;">///</span> <span style="color: #808080;">&lt;param name="commandInfo"&gt;&lt;/param&gt;</span>
-<span style="color: #0000ff;">protected</span> <span style="color: #0000ff;">override</span> <span style="color: #0000ff;">void</span><span style="color: #000000;"> HandleUnKnowCommand(IConnection connection, StringCommandInfo commandInfo)
+```csharp
+protected override void HandleUnKnowCommand(IConnection connection, StringCommandInfo commandInfo)
 {
-    commandInfo.Reply(connection, </span><span style="color: #800000;">"</span><span style="color: #800000;">unknow command:</span><span style="color: #800000;">"</span> +<span style="color: #000000;"> commandInfo.CmdName);
-}</span></pre>
-</div>
+    commandInfo.Reply(connection, "unknow command:" + commandInfo.CmdName);
+}
+```
 <p>当在终端中键入exit时，触发了ExitCommand.ExecuteCommand方法，服务端主动断开连接，终端退出。</p>
