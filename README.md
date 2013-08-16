@@ -1,4 +1,4 @@
-Overview
+﻿Overview
 ========
 <p>FastSocket是一个轻量级易扩展的c#异步socket通信库，项目开始于2011年，经过近3年不断调整与改进，目前在功能和性能上均有不错的表现。</p>
 <p>项目地址:<a href="https://github.com/devhong/FastSocket.Net">https://github.com/devhong/FastSocket.Net</a>&nbsp;</p>
@@ -8,9 +8,9 @@ Requirements
 .Net 4.0 or Mono 2.6
 Projects using FastSocket.Net
 ============
-1.<p><a href="https://github.com/devhong/Redis.Driver.Net">Redis.Driver</a></p>
-2.<p><a href="https://github.com/devhong/Zookeeper.Net">Zookeeper.Net</a></p>
-3.<p><a href="https://github.com/devhong/Thrift.Net">Thrift.Net</a></p>
+<a href="https://github.com/devhong/Redis.Driver.Net">Redis.Driver</a></ br>
+<a href="https://github.com/devhong/Zookeeper.Net">Zookeeper.Net</a></ br>
+<a href="https://github.com/devhong/Thrift.Net">Thrift.Net</a></ br>
 
 Example Usage
 =============
