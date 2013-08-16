@@ -8,9 +8,9 @@ Requirements
 .Net 4.0 or Mono 2.6
 Projects using FastSocket.Net
 ============
-1.<a href="https://github.com/devhong/Redis.Driver.Net">Redis.Driver</a>
-2.<a href="https://github.com/devhong/Zookeeper.Net">Zookeeper.Net</a>
-3.<a href="https://github.com/devhong/Thrift.Net">Thrift.Net</a>
+1.<p><a href="https://github.com/devhong/Redis.Driver.Net">Redis.Driver</a></p>
+2.<p><a href="https://github.com/devhong/Zookeeper.Net">Zookeeper.Net</a></p>
+3.<p><a href="https://github.com/devhong/Thrift.Net">Thrift.Net</a></p>
 
 Example Usage
 =============
