@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Fastsocket.net : c#异步通信库" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Fastsocket.net</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/devhong/FastSocket.Net">View on GitHub</a>
+
+          <h1 id="project_title">Fastsocket.net</h1>
+          <h2 id="project_tagline">c#异步通信库</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/devhong/FastSocket.Net/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/devhong/FastSocket.Net/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="overview" class="anchor" href="#overview"><span class="octicon octicon-link"></span></a>Overview</h1>
+
+<p>FastSocket是一个轻量级易扩展的c#异步socket通信库，项目开始于2011年，经过近3年不断调整与改进，目前在功能和性能上均有不错的表现。</p>
+
+<p>项目地址:<a href="https://github.com/devhong/FastSocket.Net">https://github.com/devhong/FastSocket.Net</a> </p>
+
+<p>FastSocket内置了命令行、二进制、thrift协议，基于此开发了Zookeeper, Redis, Thrift等c#异步客户端，接下来将会一一公开。</p>
+
+<h1>
+<a name="requirements" class="anchor" href="#requirements"><span class="octicon octicon-link"></span></a>Requirements</h1>
+
+<p>.Net 4.0 or Mono 2.6</p>
+
+<h1>
+<a name="projects-using-fastsocketnet" class="anchor" href="#projects-using-fastsocketnet"><span class="octicon octicon-link"></span></a>Projects using FastSocket.Net</h1>
+
+<ul>
+<li><a href="https://github.com/devhong/Redis.Driver.Net">Redis.Driver</a></li>
+<li><a href="https://github.com/devhong/Zookeeper.Net">Zookeeper.Net</a></li>
+<li><a href="https://github.com/devhong/Thrift.Net">Thrift.Net</a></li>
+</ul><h1>
+<a name="example-usage" class="anchor" href="#example-usage"><span class="octicon octicon-link"></span></a>Example Usage</h1>
+
+<p>简单的命令行服务</p>
+
+<p>新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用<br></p>
+
+<p>自定义服务实现MyService</p>
+
+<div class="highlight"><pre><span class="c1">/// &lt;summary&gt;</span>
+<span class="c1">/// 实现自定义服务</span>
+<span class="c1">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">MyService</span> <span class="p">:</span> <span class="n">CommandSocketService</span><span class="p">&lt;</span><span class="n">StringCommandInfo</span><span class="p">&gt;</span>
+<span class="p">{</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当连接时会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnConnected</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnConnected</span><span class="p">(</span><span class="n">connection</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">connection</span><span class="p">.</span><span class="n">RemoteEndPoint</span><span class="p">.</span><span class="n">ToString</span><span class="p">()</span> <span class="p">+</span> <span class="s">" connected"</span><span class="p">);</span>
+        <span class="n">connection</span><span class="p">.</span><span class="n">BeginSend</span><span class="p">(</span><span class="n">PacketBuilder</span><span class="p">.</span><span class="n">ToCommandLine</span><span class="p">(</span><span class="s">"welcome"</span><span class="p">));</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当连接断开时会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="ex"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnDisconnected</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnDisconnected</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">ex</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">ForegroundColor</span> <span class="p">=</span> <span class="n">ConsoleColor</span><span class="p">.</span><span class="n">Red</span><span class="p">;</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">connection</span><span class="p">.</span><span class="n">RemoteEndPoint</span><span class="p">.</span><span class="n">ToString</span><span class="p">()</span> <span class="p">+</span> <span class="s">" disconnected"</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">ForegroundColor</span> <span class="p">=</span> <span class="n">ConsoleColor</span><span class="p">.</span><span class="n">Gray</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当发生错误时会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="ex"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnException</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnException</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">ex</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"error: "</span> <span class="p">+</span> <span class="n">ex</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 处理未知命令</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="commandInfo"&gt;&lt;/param&gt;</span>
+    <span class="k">protected</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">HandleUnKnowCommand</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">StringCommandInfo</span> <span class="n">commandInfo</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">commandInfo</span><span class="p">.</span><span class="n">Reply</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="s">"unknow command:"</span> <span class="p">+</span> <span class="n">commandInfo</span><span class="p">.</span><span class="n">CmdName</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Exit命令</p>
+
+<div class="highlight"><pre><span class="c1">/// &lt;summary&gt;</span>
+<span class="c1">/// 退出命令</span>
+<span class="c1">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> <span class="nc">ExitCommand</span> <span class="p">:</span> <span class="n">ICommand</span><span class="p">&lt;</span><span class="n">StringCommandInfo</span><span class="p">&gt;</span>
+<span class="p">{</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 返回命令名称</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="kt">string</span> <span class="n">Name</span>
+    <span class="p">{</span>
+        <span class="k">get</span> <span class="p">{</span> <span class="k">return</span> <span class="s">"exit"</span><span class="p">;</span> <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 执行命令</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="commandInfo"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">ExecuteCommand</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">StringCommandInfo</span> <span class="n">commandInfo</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">connection</span><span class="p">.</span><span class="n">BeginDisconnect</span><span class="p">();</span><span class="c1">//断开连接</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>App.config配置</p>
+
+<div class="highlight"><pre><span class="cp">&lt;?xml version="1.0"?&gt;</span>
+<span class="nt">&lt;configuration&gt;</span>
+
+  <span class="nt">&lt;configSections&gt;</span>
+    <span class="nt">&lt;section</span> <span class="na">name=</span><span class="s">"socketServer"</span>
+             <span class="na">type=</span><span class="s">"Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server_1.0"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;/configSections&gt;</span>
+
+  <span class="nt">&lt;socketServer&gt;</span>
+    <span class="nt">&lt;servers&gt;</span>
+      <span class="nt">&lt;server</span> <span class="na">name=</span><span class="s">"cmdline"</span>
+              <span class="na">port=</span><span class="s">"8400"</span>
+              <span class="na">socketBufferSize=</span><span class="s">"8192"</span>
+              <span class="na">messageBufferSize=</span><span class="s">"8192"</span>
+              <span class="na">maxMessageSize=</span><span class="s">"102400"</span>
+              <span class="na">maxConnections=</span><span class="s">"20000"</span>
+              <span class="na">serviceType=</span><span class="s">"CommandLine.MyService, CommandLine"</span>
+              <span class="na">protocol=</span><span class="s">"commandLine"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/servers&gt;</span>
+  <span class="nt">&lt;/socketServer&gt;</span>
+
+<span class="nt">&lt;/configuration&gt;</span>
+</pre></div>
+
+<p>初始化及启动服务</p>
+
+<div class="highlight"><pre><span class="k">static</span> <span class="k">void</span> <span class="nf">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">SocketServerManager</span><span class="p">.</span><span class="n">Init</span><span class="p">();</span>
+    <span class="n">SocketServerManager</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
+
+    <span class="n">Console</span><span class="p">.</span><span class="n">ReadLine</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>启动服务，然后在cmd中运行telnet 127.0.0.1 8400, 运行截图如下：</p>
+
+<p><img src="http://images.cnitblog.com/blog/21702/201308/15220257-a74cd62ae2c64d5eb4da160d44212272.png" alt=""></p>
+
+<p><img src="http://images.cnitblog.com/blog/21702/201308/15220409-b328d92f13d94c45b0a06452b2930d5a.png" alt=""></p>
+
+<p>其中welcome中当连接建立时服务端发送到终端的。</p>
+
+<p>connection.BeginSend(PacketBuilder.ToCommandLine("welcome"));</p>
+
+<p>unknow command:Hello是因为没有对应的"Hello"命令实现由HandleUnKnowCommand输出的</p>
+
+<div class="highlight"><pre><span class="k">protected</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">HandleUnKnowCommand</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">StringCommandInfo</span> <span class="n">commandInfo</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">commandInfo</span><span class="p">.</span><span class="n">Reply</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="s">"unknow command:"</span> <span class="p">+</span> <span class="n">commandInfo</span><span class="p">.</span><span class="n">CmdName</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>当在终端中键入exit时，触发了ExitCommand.ExecuteCommand方法，服务端主动断开连接，终端退出。</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Fastsocket.net maintained by <a href="https://github.com/devhong">devhong</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
