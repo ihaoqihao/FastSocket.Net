@@ -101,7 +101,7 @@ public sealed class ExitCommand : ICommand<StringCommandInfo>
 
   <configSections>
     <section name="socketServer"
-             type="Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server_1.0"/>
+             type="Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server"/>
   </configSections>
 
   <socketServer>
