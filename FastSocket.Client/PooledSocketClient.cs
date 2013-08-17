@@ -44,18 +44,6 @@ namespace Sodao.FastSocket.Client
         }
         #endregion
 
-        #region Private Methods
-        /// <summary>
-        /// on server pool connected
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="connection"></param>
-        private void OnServerPoolConnected(string name, IConnection connection)
-        {
-            base.RegisterConnection(connection);
-        }
-        #endregion
-
         #region Protected Methods
         /// <summary>
         /// create <see cref="IServerPool"/> instance.
@@ -64,6 +52,15 @@ namespace Sodao.FastSocket.Client
         protected virtual IServerPool InitServerPool()
         {
             return new DefaultServerPool(this);
+        }
+        /// <summary>
+        /// on server pool connected
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="connection"></param>
+        protected virtual void OnServerPoolConnected(string name, IConnection connection)
+        {
+            base.RegisterConnection(connection);
         }
         #endregion
 
