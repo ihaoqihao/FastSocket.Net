@@ -14,9 +14,9 @@ Projects using FastSocket.Net
 
 Example Usage
 =============
-<p><span style="font-family: 黑体; font-size: 14pt; line-height: 1.5;">简单的命令行服务</span></p>
-<p><span style="font-size: 14pt; font-family: 黑体;"><span style="font-size: 13px;">新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用</span><br /></span></p>
-<p><span style="font-size: 14pt; font-family: 黑体;"><span style="font-size: 13px;">自定义服务实现MyService</span></span></p>
+<h3>简单的命令行服务</h3>
+<p>新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用</p>
+<p>自定义服务实现MyService</p>
 
 ```csharp
 /// <summary>
@@ -144,3 +144,214 @@ protected override void HandleUnKnowCommand(IConnection connection, StringComman
 }
 ```
 <p>当在终端中键入exit时，触发了ExitCommand.ExecuteCommand方法，服务端主动断开连接，终端退出。</p>
+
+
+<h3>在服务中使用自定义二进制协议</h3>
+<p>
+新建控制台项目，命名为Server
+添加FastSocket.SocketBase,FastSocket.Server引用
+
+Socket命令服务类: Sodao.FastSocket.Server.CommandSocketService泛型类
+其中需要实现Socket连接，断开，异常，发送完回调及处理未知命令的方法
+
+内置的二进制命令对象: Sodao.FatSocket.Server.Command.AsyncBinaryCommandInfo
+由一个command name,一个唯一标识SeqId和主题内容buffer构建。
+
+定义服务类MyService继承CommandSocketService类，
+泛型类型为上述的AsyncBinanryCommandInfo
+</p>
+
+```csharp
+/// <summary>
+/// 实现自定义服务
+/// </summary>
+public class MyService : CommandSocketService<AsyncBinaryCommandInfo>
+{
+    /// <summary>
+    /// 当连接时会调用此方法
+    /// </summary>
+    /// <param name="connection"></param>
+    public override void OnConnected(IConnection connection)
+    {
+        base.OnConnected(connection);
+        Console.WriteLine(connection.RemoteEndPoint.ToString() + " connected");
+    }
+    /// <summary>
+    /// 当连接断开时会调用此方法
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="ex"></param>
+    public override void OnDisconnected(IConnection connection, Exception ex)
+    {
+        base.OnDisconnected(connection, ex);
+        Console.ForegroundColor = ConsoleColor .Red;
+        Console.WriteLine(connection.RemoteEndPoint.ToString() + " disconnected");
+        Console.ForegroundColor = ConsoleColor .Gray;
+    }
+    /// <summary>
+    /// 当发生错误时会调用此方法
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="ex"></param>
+    public override void OnException( IConnection connection, Exception ex)
+    {
+        base.OnException(connection, ex);
+        Console.WriteLine("error: " + ex.ToString());
+    }
+    /// <summary>
+    /// 当服务端发送Packet完毕会调用此方法
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="e"></param>
+    public override void OnSendCallback( IConnection connection, SendCallbackEventArgs e)
+    {
+        base.OnSendCallback(connection, e);
+        Console.ForegroundColor = ConsoleColor .Green;
+        Console.WriteLine("send " + e.Status.ToString());
+        Console.ForegroundColor = ConsoleColor .Gray;
+    }
+    /// <summary>
+    /// 处理未知的命令
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandInfo"></param>
+    protected override void HandleUnKnowCommand( IConnection connection, AsyncBinaryCommandInfo commandInfo)
+    {
+        Console.WriteLine("unknow command: " + commandInfo.CmdName);
+    }
+}
+```
+<p>
+实现一个命令如示例项目中的SumCommand类，命令类需要实现ICommand泛型接口
+即服务中可以进行处理的服务契约
+而泛型类型即上述的AsyncBinaryCommandInfo
+</p>
+
+```csharp
+/// <summary>
+/// sum command
+/// 用于将一组int32数字求和并返回
+/// </summary>
+public sealed class SumCommand : ICommand<AsyncBinaryCommandInfo >
+{
+    /// <summary>
+    /// 返回服务名称
+    /// </summary>
+    public string Name
+    {
+        get { return "sum"; }
+    }
+    /// <summary>
+    /// 执行命令并返回结果
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandInfo"></param>
+    public void ExecuteCommand(IConnection connection, AsyncBinaryCommandInfo commandInfo)
+    {
+        if (commandInfo.Buffer == null || commandInfo.Buffer.Length == 0)
+        {
+            Console.WriteLine("sum参数为空" );
+            connection.BeginDisconnect();
+            return;
+        }
+        if (commandInfo.Buffer.Length % 4 != 0)
+        {
+            Console.WriteLine("sum参数错误" );
+            connection.BeginDisconnect();
+            return;
+        }
+
+        int skip = 0;
+        var arr = new int[commandInfo.Buffer.Length / 4];
+        for (int i = 0, l = arr.Length; i < l; i++)
+        {
+            arr[i] = BitConverter.ToInt32(commandInfo.Buffer, skip);
+            skip += 4;
+        }
+
+        commandInfo.Reply(connection, BitConverter.GetBytes(arr.Sum()));
+    }
+}
+```
+app.config
+```xml
+<?xml version=" 1.0"?>
+<configuration>
+
+  <configSections>
+    < section name ="socketServer "
+             type=" Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server "/>
+  </configSections>
+
+  <socketServer>
+    < servers>
+      < server name ="binary "
+              port=" 8401"
+              socketBufferSize=" 8192"
+              messageBufferSize=" 8192"
+              maxMessageSize=" 102400"
+              maxConnections=" 20000"
+              serviceType=" Server.MyService, Server"
+              protocol=" asyncBinary"/>
+    </ servers>
+  </socketServer>
+
+</configuration>
+```
+
+<p>
+其中section name="socketServer" 为服务端默认读取的sectionName
+type为反射自FastSocket.Server中的config类型
+server配置中，name自定，serviceType为上述实现的服务类反射类型
+协议名为asyncBinary
+
+在Main函数中启动服务
+</p>
+```csharp
+static void Main(string[] args)
+{
+    SocketServerManager.Init();
+    SocketServerManager.Start();
+
+    Console.ReadLine();
+}
+```
+<p>
+新建控制台应用程序，命名为Client
+添加FastSocket.Client,FastSocket.SocketBase引用
+
+客户端的代码为组织命令向服务端请求
+创建一个Sodao.FastSocket.Client.AsyncBinarySocketClient的实例
+并通过RegisterServerNode来注册服务端节点，需要注意name必须唯一
+并且地址为我们服务端运行的地址，端口为服务端配置文件中配置的端口号
+</p>
+```csharp
+static void Main(string[] args)
+{
+    var client = new Sodao.FastSocket.Client.AsyncBinarySocketClient(8192, 8192, 3000, 3000);
+    //注册服务器节点，这里可注册多个(name不能重复）
+    client.RegisterServerNode( "127.0.0.1:8401", new System.Net.IPEndPoint (System.Net.IPAddress.Parse( "127.0.0.1"), 8401));
+    //client.RegisterServerNode("127.0.0.1:8402", new System.Net.IPEndPoint(System.Net.IPAddress.Parse("127.0.0.2"), 8401));
+
+    //组织sum参数, 格式为<<i:32-limit-endian,....N>>
+    //这里的参数其实也可以使用thrift, protobuf, bson, json等进行序列化，
+    byte[] bytes = null ;
+    using (var ms = new System.IO. MemoryStream())
+    {
+        for (int i = 1; i <= 1000; i++) ms.Write(BitConverter.GetBytes(i), 0, 4);
+        bytes = ms.ToArray();
+    }
+    //发送sum命令
+    client.Send( "sum", bytes, res => BitConverter .ToInt32(res.Buffer, 0)).ContinueWith(c =>
+    {
+        if (c.IsFaulted)
+        {
+            Console.WriteLine(c.Exception.ToString());
+            return;
+        }
+        Console.WriteLine(c.Result);
+    });
+
+    Console.ReadLine();
+}
+```
