@@ -290,8 +290,8 @@ namespace Sodao.FastSocket.Client
                 {
                     this._timer.Change(Timeout.Infinite, Timeout.Infinite);
                     this.Loop();
-                    this._timer.Change(500, 0);
-                }, null, 500, 0);
+                    this._timer.Change(1000, 0);
+                }, null, 1000, 0);
             }
             #endregion
 
