@@ -141,27 +141,25 @@ namespace Sodao.FastSocket.Client
         /// <param name="connection"></param>
         private void OnConnected(SocketConnector node, SocketBase.IConnection connection)
         {
-            SocketBase.IConnection oldConnection = null;
-            bool isActive = false; //node is active
+            //fire connected event.
+            this.Connected(node.Name, connection);
 
+            bool isActive = false;
+            SocketBase.IConnection oldConnection = null;
             lock (this)
             {
                 //remove exists connection by name.
                 if (this._dicConnections.TryGetValue(node.Name, out oldConnection)) this._dicConnections.Remove(node.Name);
-
-                isActive = this._dicNodes.ContainsKey(node.Name);
-                if (isActive) this._dicConnections[node.Name] = connection;
+                //add curr connection to list if node is active
+                if (isActive = this._dicNodes.ContainsKey(node.Name)) this._dicConnections[node.Name] = connection;
 
                 this._arrConnections = this._dicConnections.Values.ToArray();
                 this._hashConnections = new ConsistentHashContainer<SocketBase.IConnection>(this._dicConnections);
             }
-
             //disconect old connection.
             if (oldConnection != null) oldConnection.BeginDisconnect();
             //disconnect not active node connection.
-            if (!isActive) { connection.BeginDisconnect(); return; }
-            //fire connected event.
-            this.Connected(node.Name, connection);
+            if (!isActive) connection.BeginDisconnect();
         }
         /// <summary>
         /// on disconnected

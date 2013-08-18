@@ -56,7 +56,7 @@ namespace Sodao.FastSocket.Client
             this._millisecondsSendTimeout = millisecondsSendTimeout;
             this._millisecondsReceiveTimeout = millisecondsReceiveTimeout;
 
-            this._pendingQueue = new PendingSendQueue(millisecondsSendTimeout);
+            this._pendingQueue = new PendingSendQueue(this, millisecondsSendTimeout);
             this._requestCollection = new RequestCollection(millisecondsReceiveTimeout);
         }
         #endregion
@@ -131,16 +131,6 @@ namespace Sodao.FastSocket.Client
         {
             return this._pendingQueue.DequeueAll();
         }
-        /// <summary>
-        /// try send all pending request
-        /// </summary>
-        protected void TrySendAllPendingRequest()
-        {
-            //try send pending queue request on socket connected.
-            var arrRequest = this.DequeueAllFromPendingQueue();
-            if (arrRequest == null || arrRequest.Length == 0) return;
-            for (int i = 0, l = arrRequest.Length; i < l; i++) this.Send(arrRequest[i]);
-        }
         #endregion
 
         #region Public Methods
@@ -163,8 +153,6 @@ namespace Sodao.FastSocket.Client
         {
             base.OnConnected(connection);
             connection.BeginReceive();//异步开始接收数据
-
-            this.TrySendAllPendingRequest();
         }
         /// <summary>
         /// OnStartSending
@@ -273,6 +261,8 @@ namespace Sodao.FastSocket.Client
         private class PendingSendQueue
         {
             #region Private Members
+            private readonly BaseSocketClient<TResponse> _client = null;
+
             private readonly int _timeout;
             private readonly Timer _timer = null;
             private readonly Queue<Request<TResponse>> _queue = new Queue<Request<TResponse>>();
@@ -290,16 +280,18 @@ namespace Sodao.FastSocket.Client
             /// <summary>
             /// new
             /// </summary>
+            /// <param name="client"></param>
             /// <param name="millisecondsSendTimeout"></param>
-            public PendingSendQueue(int millisecondsSendTimeout)
+            public PendingSendQueue(BaseSocketClient<TResponse> client, int millisecondsSendTimeout)
             {
+                this._client = client;
                 this._timeout = millisecondsSendTimeout;
                 this._timer = new Timer(_ =>
                 {
                     this._timer.Change(Timeout.Infinite, Timeout.Infinite);
                     this.Loop();
-                    this._timer.Change(1000, 0);
-                }, null, 1000, 0);
+                    this._timer.Change(500, 0);
+                }, null, 500, 0);
             }
             #endregion
 
@@ -350,21 +342,40 @@ namespace Sodao.FastSocket.Client
             private void Loop()
             {
                 var dtNow = DateTime.UtcNow;
+                List<Request<TResponse>> listSend = null;
+                List<Request<TResponse>> listTimeout = null;
+
                 lock (this)
                 {
-                    int i = this._queue.Count;
-                    while (i-- > 0)
+                    while (this._queue.Count > 0)
                     {
                         var request = this._queue.Dequeue();
                         if (dtNow.Subtract(request.BeginTime).TotalMilliseconds < this._timeout)
                         {
-                            this._queue.Enqueue(request);
+                            if (listSend == null) listSend = new List<Request<TResponse>>();
+                            listSend.Add(request);
                             continue;
                         }
+
+                        if (listTimeout == null) listTimeout = new List<Request<TResponse>>();
+                        listTimeout.Add(request);
+                    }
+                }
+
+                if (listSend != null)
+                {
+                    for (int i = 0, l = listSend.Count; i < l; i++) this._client.Send(listSend[i]);
+                }
+
+                if (listTimeout != null)
+                {
+                    for (int i = 0, l = listTimeout.Count; i < l; i++)
+                    {
+                        var r = listTimeout[i];
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
-                            var ex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
-                            try { request.SetException(ex); }
+                            var ex = new RequestException(RequestException.Errors.PendingSendTimeout, r.CmdName);
+                            try { r.SetException(ex); }
                             catch { }
                         });
                     }
