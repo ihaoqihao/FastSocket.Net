@@ -12,6 +12,10 @@ namespace Sodao.FastSocket.Client
         /// socket connected event
         /// </summary>
         event Action<string, SocketBase.IConnection> Connected;
+        /// <summary>
+        /// server available event
+        /// </summary>
+        event Action ServerAvailable;
 
         /// <summary>
         /// try register server node.
