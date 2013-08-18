@@ -41,6 +41,7 @@ namespace Sodao.FastSocket.Client
         {
             this._serverPool = this.InitServerPool();
             this._serverPool.Connected += this.OnServerPoolConnected;
+            this._serverPool.ServerAvailable += new Action(this.OnServerPoolServerAvailable);
         }
         #endregion
 
@@ -61,6 +62,15 @@ namespace Sodao.FastSocket.Client
         protected virtual void OnServerPoolConnected(string name, IConnection connection)
         {
             base.RegisterConnection(connection);
+        }
+        /// <summary>
+        /// on server available
+        /// </summary>
+        protected virtual void OnServerPoolServerAvailable()
+        {
+            var arr = base.DequeueAllFromPendingQueue();
+            if (arr == null) return;
+            for (int i = 0, l = arr.Length; i < l; i++) this.Send(arr[i]);
         }
         #endregion
 
