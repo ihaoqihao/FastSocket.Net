@@ -55,9 +55,10 @@
 </ul><h1>
 <a name="example-usage" class="anchor" href="#example-usage"><span class="octicon octicon-link"></span></a>Example Usage</h1>
 
-<p>简单的命令行服务</p>
+<h3>
+<a name="1-%E7%AE%80%E5%8D%95%E7%9A%84%E5%91%BD%E4%BB%A4%E8%A1%8C%E6%9C%8D%E5%8A%A1" class="anchor" href="#1-%E7%AE%80%E5%8D%95%E7%9A%84%E5%91%BD%E4%BB%A4%E8%A1%8C%E6%9C%8D%E5%8A%A1"><span class="octicon octicon-link"></span></a>1: 简单的命令行服务</h3>
 
-<p>新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用<br></p>
+<p>新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用</p>
 
 <p>自定义服务实现MyService</p>
 
@@ -143,7 +144,7 @@
 
   <span class="nt">&lt;configSections&gt;</span>
     <span class="nt">&lt;section</span> <span class="na">name=</span><span class="s">"socketServer"</span>
-             <span class="na">type=</span><span class="s">"Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server_1.0"</span><span class="nt">/&gt;</span>
+             <span class="na">type=</span><span class="s">"Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server"</span><span class="nt">/&gt;</span>
   <span class="nt">&lt;/configSections&gt;</span>
 
   <span class="nt">&lt;socketServer&gt;</span>
@@ -192,6 +193,228 @@
 </pre></div>
 
 <p>当在终端中键入exit时，触发了ExitCommand.ExecuteCommand方法，服务端主动断开连接，终端退出。</p>
+
+<h3>
+<a name="2-%E5%9C%A8%E6%9C%8D%E5%8A%A1%E4%B8%AD%E4%BD%BF%E7%94%A8%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8D%8F%E8%AE%AE" class="anchor" href="#2-%E5%9C%A8%E6%9C%8D%E5%8A%A1%E4%B8%AD%E4%BD%BF%E7%94%A8%E8%87%AA%E5%AE%9A%E4%B9%89%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%8D%8F%E8%AE%AE"><span class="octicon octicon-link"></span></a>2: 在服务中使用自定义二进制协议</h3>
+
+<div>新建控制台项目，命名为Server</div>
+
+<div>添加FastSocket.SocketBase,FastSocket.Server引用</div>
+
+<div>Socket命令服务类: Sodao.FastSocket.Server.CommandSocketService泛型类</div>
+
+<div>其中需要实现Socket连接，断开，异常，发送完回调及处理未知命令的方法</div>
+
+<div>内置的二进制命令对象: Sodao.FatSocket.Server.Command.AsyncBinaryCommandInfo</div>
+
+<div>由一个command name,一个唯一标识SeqId和主题内容buffer构建。</div>
+
+<div>定义服务类MyService继承CommandSocketService类，</div>
+
+<div>泛型类型为上述的AsyncBinanryCommandInfo</div>
+
+<p></p>
+
+<div class="highlight"><pre><span class="c1">/// &lt;summary&gt;</span>
+<span class="c1">/// 实现自定义服务</span>
+<span class="c1">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">MyService</span> <span class="p">:</span> <span class="n">CommandSocketService</span><span class="p">&lt;</span><span class="n">AsyncBinaryCommandInfo</span><span class="p">&gt;</span>
+<span class="p">{</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当连接时会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnConnected</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnConnected</span><span class="p">(</span><span class="n">connection</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">connection</span><span class="p">.</span><span class="n">RemoteEndPoint</span><span class="p">.</span><span class="n">ToString</span><span class="p">()</span> <span class="p">+</span> <span class="s">" connected"</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当连接断开时会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="ex"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnDisconnected</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnDisconnected</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">ex</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">ForegroundColor</span> <span class="p">=</span> <span class="n">ConsoleColor</span><span class="p">.</span><span class="n">Red</span><span class="p">;</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">connection</span><span class="p">.</span><span class="n">RemoteEndPoint</span><span class="p">.</span><span class="n">ToString</span><span class="p">()</span> <span class="p">+</span> <span class="s">" disconnected"</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">ForegroundColor</span> <span class="p">=</span> <span class="n">ConsoleColor</span><span class="p">.</span><span class="n">Gray</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当发生错误时会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="ex"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnException</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnException</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">ex</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"error: "</span> <span class="p">+</span> <span class="n">ex</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 当服务端发送Packet完毕会调用此方法</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="e"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnSendCallback</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">SendCallbackEventArgs</span> <span class="n">e</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">base</span><span class="p">.</span><span class="n">OnSendCallback</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">e</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">ForegroundColor</span> <span class="p">=</span> <span class="n">ConsoleColor</span><span class="p">.</span><span class="n">Green</span><span class="p">;</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"send "</span> <span class="p">+</span> <span class="n">e</span><span class="p">.</span><span class="n">Status</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">ForegroundColor</span> <span class="p">=</span> <span class="n">ConsoleColor</span><span class="p">.</span><span class="n">Gray</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 处理未知的命令</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="commandInfo"&gt;&lt;/param&gt;</span>
+    <span class="k">protected</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">HandleUnKnowCommand</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">AsyncBinaryCommandInfo</span> <span class="n">commandInfo</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"unknow command: "</span> <span class="p">+</span> <span class="n">commandInfo</span><span class="p">.</span><span class="n">CmdName</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<div>实现一个命令如示例项目中的SumCommand类，命令类需要实现ICommand泛型接口</div>
+
+<div>即服务中可以进行处理的服务契约</div>
+
+<div>而泛型类型即上述的AsyncBinaryCommandInfo</div>
+
+<div class="highlight"><pre><span class="c1">/// &lt;summary&gt;</span>
+<span class="c1">/// sum command</span>
+<span class="c1">/// 用于将一组int32数字求和并返回</span>
+<span class="c1">/// &lt;/summary&gt;</span>
+<span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> <span class="nc">SumCommand</span> <span class="p">:</span> <span class="n">ICommand</span><span class="p">&lt;</span><span class="n">AsyncBinaryCommandInfo</span><span class="p">&gt;</span>
+<span class="p">{</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 返回服务名称</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="k">public</span> <span class="kt">string</span> <span class="n">Name</span>
+    <span class="p">{</span>
+        <span class="k">get</span> <span class="p">{</span> <span class="k">return</span> <span class="s">"sum"</span><span class="p">;</span> <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="c1">/// &lt;summary&gt;</span>
+    <span class="c1">/// 执行命令并返回结果</span>
+    <span class="c1">/// &lt;/summary&gt;</span>
+    <span class="c1">/// &lt;param name="connection"&gt;&lt;/param&gt;</span>
+    <span class="c1">/// &lt;param name="commandInfo"&gt;&lt;/param&gt;</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">ExecuteCommand</span><span class="p">(</span><span class="n">IConnection</span> <span class="n">connection</span><span class="p">,</span> <span class="n">AsyncBinaryCommandInfo</span> <span class="n">commandInfo</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">commandInfo</span><span class="p">.</span><span class="n">Buffer</span> <span class="p">==</span> <span class="k">null</span> <span class="p">||</span> <span class="n">commandInfo</span><span class="p">.</span><span class="n">Buffer</span><span class="p">.</span><span class="n">Length</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"sum参数为空"</span><span class="p">);</span>
+            <span class="n">connection</span><span class="p">.</span><span class="n">BeginDisconnect</span><span class="p">();</span>
+            <span class="k">return</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">commandInfo</span><span class="p">.</span><span class="n">Buffer</span><span class="p">.</span><span class="n">Length</span> <span class="p">%</span> <span class="m">4</span> <span class="p">!=</span> <span class="m">0</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"sum参数错误"</span><span class="p">);</span>
+            <span class="n">connection</span><span class="p">.</span><span class="n">BeginDisconnect</span><span class="p">();</span>
+            <span class="k">return</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="kt">int</span> <span class="n">skip</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span>
+        <span class="kt">var</span> <span class="n">arr</span> <span class="p">=</span> <span class="k">new</span> <span class="kt">int</span><span class="p">[</span><span class="n">commandInfo</span><span class="p">.</span><span class="n">Buffer</span><span class="p">.</span><span class="n">Length</span> <span class="p">/</span> <span class="m">4</span><span class="p">];</span>
+        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="p">=</span> <span class="m">0</span><span class="p">,</span> <span class="n">l</span> <span class="p">=</span> <span class="n">arr</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span> <span class="n">i</span> <span class="p">&lt;</span> <span class="n">l</span><span class="p">;</span> <span class="n">i</span><span class="p">++)</span>
+        <span class="p">{</span>
+            <span class="n">arr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">=</span> <span class="n">BitConverter</span><span class="p">.</span><span class="n">ToInt32</span><span class="p">(</span><span class="n">commandInfo</span><span class="p">.</span><span class="n">Buffer</span><span class="p">,</span> <span class="n">skip</span><span class="p">);</span>
+            <span class="n">skip</span> <span class="p">+=</span> <span class="m">4</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="n">commandInfo</span><span class="p">.</span><span class="n">Reply</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">BitConverter</span><span class="p">.</span><span class="n">GetBytes</span><span class="p">(</span><span class="n">arr</span><span class="p">.</span><span class="n">Sum</span><span class="p">()));</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>app.config</p>
+
+<div class="highlight"><pre><span class="cp">&lt;?xml version="1.0"?&gt;</span>
+<span class="nt">&lt;configuration&gt;</span>
+
+  <span class="nt">&lt;configSections&gt;</span>
+    <span class="nt">&lt;section</span> <span class="na">name=</span><span class="s">"socketServer"</span>
+             <span class="na">type=</span><span class="s">"Sodao.FastSocket.Server.Config.SocketServerConfig, FastSocket.Server"</span><span class="nt">/&gt;</span>
+  <span class="nt">&lt;/configSections&gt;</span>
+
+  <span class="nt">&lt;socketServer&gt;</span>
+    <span class="nt">&lt;servers&gt;</span>
+      <span class="nt">&lt;server</span> <span class="na">name=</span><span class="s">"binary"</span>
+              <span class="na">port=</span><span class="s">"8401"</span>
+              <span class="na">socketBufferSize=</span><span class="s">"8192"</span>
+              <span class="na">messageBufferSize=</span><span class="s">"8192"</span>
+              <span class="na">maxMessageSize=</span><span class="s">"102400"</span>
+              <span class="na">maxConnections=</span><span class="s">"20000"</span>
+              <span class="na">serviceType=</span><span class="s">"Server.MyService, Server"</span>
+              <span class="na">protocol=</span><span class="s">"asyncBinary"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/servers&gt;</span>
+  <span class="nt">&lt;/socketServer&gt;</span>
+
+<span class="nt">&lt;/configuration&gt;</span>
+</pre></div>
+
+<div>其中section name="socketServer" 为服务端默认读取的sectionName</div>
+
+<div>type为反射自FastSocket.Server中的config类型</div>
+
+<div>server配置中，name自定，serviceType为上述实现的服务类反射类型</div>
+
+<div>协议名为asyncBinary</div>
+
+<div>在Main函数中启动服务</div>
+
+<p></p>
+
+<div class="highlight"><pre><span class="k">static</span> <span class="k">void</span> <span class="nf">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">SocketServerManager</span><span class="p">.</span><span class="n">Init</span><span class="p">();</span>
+    <span class="n">SocketServerManager</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
+
+    <span class="n">Console</span><span class="p">.</span><span class="n">ReadLine</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+
+<div>新建控制台应用程序，命名为Client</div>
+
+<div>添加FastSocket.Client,FastSocket.SocketBase引用</div>
+
+<div>客户端的代码为组织命令向服务端请求</div>
+
+<div>创建一个Sodao.FastSocket.Client.AsyncBinarySocketClient的实例</div>
+
+<div>并通过RegisterServerNode来注册服务端节点，需要注意name必须唯一</div>
+
+<div>并且地址为我们服务端运行的地址，端口为服务端配置文件中配置的端口号</div>
+
+<div class="highlight"><pre><span class="k">static</span> <span class="k">void</span> <span class="nf">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">var</span> <span class="n">client</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Sodao</span><span class="p">.</span><span class="n">FastSocket</span><span class="p">.</span><span class="n">Client</span><span class="p">.</span><span class="n">AsyncBinarySocketClient</span><span class="p">(</span><span class="m">8192</span><span class="p">,</span> <span class="m">8192</span><span class="p">,</span> <span class="m">3000</span><span class="p">,</span> <span class="m">3000</span><span class="p">);</span>
+    <span class="c1">//注册服务器节点，这里可注册多个(name不能重复）</span>
+    <span class="n">client</span><span class="p">.</span><span class="n">RegisterServerNode</span><span class="p">(</span><span class="s">"127.0.0.1:8401"</span><span class="p">,</span> <span class="k">new</span> <span class="n">System</span><span class="p">.</span><span class="n">Net</span><span class="p">.</span><span class="n">IPEndPoint</span><span class="p">(</span><span class="n">System</span><span class="p">.</span><span class="n">Net</span><span class="p">.</span><span class="n">IPAddress</span><span class="p">.</span><span class="n">Parse</span><span class="p">(</span><span class="s">"127.0.0.1"</span><span class="p">),</span> <span class="m">8401</span><span class="p">));</span>
+    <span class="c1">//client.RegisterServerNode("127.0.0.1:8402", new System.Net.IPEndPoint(System.Net.IPAddress.Parse("127.0.0.2"), 8401));</span>
+
+    <span class="c1">//组织sum参数, 格式为&lt;&lt;i:32-limit-endian,....N&gt;&gt;</span>
+    <span class="c1">//这里的参数其实也可以使用thrift, protobuf, bson, json等进行序列化，</span>
+    <span class="kt">byte</span><span class="p">[]</span> <span class="n">bytes</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+    <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">ms</span> <span class="p">=</span> <span class="k">new</span> <span class="n">System</span><span class="p">.</span><span class="n">IO</span><span class="p">.</span><span class="n">MemoryStream</span><span class="p">())</span>
+    <span class="p">{</span>
+        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="p">=</span> <span class="m">1</span><span class="p">;</span> <span class="n">i</span> <span class="p">&lt;=</span> <span class="m">1000</span><span class="p">;</span> <span class="n">i</span><span class="p">++)</span> <span class="n">ms</span><span class="p">.</span><span class="n">Write</span><span class="p">(</span><span class="n">BitConverter</span><span class="p">.</span><span class="n">GetBytes</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="m">0</span><span class="p">,</span> <span class="m">4</span><span class="p">);</span>
+        <span class="n">bytes</span> <span class="p">=</span> <span class="n">ms</span><span class="p">.</span><span class="n">ToArray</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="c1">//发送sum命令</span>
+    <span class="n">client</span><span class="p">.</span><span class="n">Send</span><span class="p">(</span><span class="s">"sum"</span><span class="p">,</span> <span class="n">bytes</span><span class="p">,</span> <span class="n">res</span> <span class="p">=&gt;</span> <span class="n">BitConverter</span><span class="p">.</span><span class="n">ToInt32</span><span class="p">(</span><span class="n">res</span><span class="p">.</span><span class="n">Buffer</span><span class="p">,</span> <span class="m">0</span><span class="p">)).</span><span class="n">ContinueWith</span><span class="p">(</span><span class="n">c</span> <span class="p">=&gt;</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">c</span><span class="p">.</span><span class="n">IsFaulted</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">c</span><span class="p">.</span><span class="n">Exception</span><span class="p">.</span><span class="n">ToString</span><span class="p">());</span>
+            <span class="k">return</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">c</span><span class="p">.</span><span class="n">Result</span><span class="p">);</span>
+    <span class="p">});</span>
+
+    <span class="n">Console</span><span class="p">.</span><span class="n">ReadLine</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
       </section>
     </div>
 
