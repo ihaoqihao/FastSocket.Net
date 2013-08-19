@@ -24,6 +24,7 @@ namespace Sodao.FastSocket.SocketBase.Utils
             {
                 try { callback(); }
                 catch { }
+                return;
             }
 
             Timer timer = null;
