@@ -10,11 +10,6 @@ namespace Sodao.FastSocket.Server
     {
         #region Members
         private readonly IUdpServer _server = null;
-
-        /// <summary>
-        /// get local endPoint
-        /// </summary>
-        public readonly EndPoint LocalEndPoint = null;
         /// <summary>
         /// get remote endPoint
         /// </summary>
@@ -25,14 +20,12 @@ namespace Sodao.FastSocket.Server
         /// <summary>
         /// new
         /// </summary>
-        /// <param name="localEndPoint"></param>
         /// <param name="remoteEndPoint"></param>
         /// <param name="server"></param>
         /// <exception cref="ArgumentNullException">server is null</exception>
-        public UdpSession(EndPoint localEndPoint, EndPoint remoteEndPoint, IUdpServer server)
+        public UdpSession(EndPoint remoteEndPoint, IUdpServer server)
         {
             if (server == null) throw new ArgumentNullException("server");
-            this.LocalEndPoint = localEndPoint;
             this.RemoteEndPoint = remoteEndPoint;
             this._server = server;
         }
