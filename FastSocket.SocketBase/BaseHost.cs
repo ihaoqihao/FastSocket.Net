@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Threading;
 
@@ -15,7 +16,7 @@ namespace Sodao.FastSocket.SocketBase
         /// connection collection
         /// </summary>
         protected readonly ConnectionCollection _listConnections = new ConnectionCollection();
-        private readonly Utils.InterlockedStack<SocketAsyncEventArgs> _stack = new Utils.InterlockedStack<SocketAsyncEventArgs>();
+        private readonly ConcurrentStack<SocketAsyncEventArgs> _stack = new ConcurrentStack<SocketAsyncEventArgs>();
         #endregion
 
         #region Constructors
