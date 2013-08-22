@@ -278,7 +278,7 @@ namespace Sodao.FastSocket.Client
 
             private readonly int _timeout;
             private readonly Timer _timer = null;
-            private readonly Queue<Request<TResponse>> _queue = new Queue<Request<TResponse>>();
+            private readonly ConcurrentQueue<Request<TResponse>> _queue = new ConcurrentQueue<Request<TResponse>>();
             #endregion
 
             #region Constructors
@@ -317,7 +317,7 @@ namespace Sodao.FastSocket.Client
             public void Enqueue(Request<TResponse> request)
             {
                 if (request == null) throw new ArgumentNullException("request");
-                lock (this) this._queue.Enqueue(request);
+                this._queue.Enqueue(request);
             }
             /// <summary>
             /// dequeue
@@ -325,11 +325,9 @@ namespace Sodao.FastSocket.Client
             /// <returns></returns>
             public Request<TResponse> Dequeue()
             {
-                lock (this)
-                {
-                    if (this._queue.Count == 0) return null;
-                    return this._queue.Dequeue();
-                }
+                Request<TResponse> request;
+                if (this._queue.TryDequeue(out request)) return request;
+                return null;
             }
             /// <summary>
             /// 出列全部
@@ -337,14 +335,21 @@ namespace Sodao.FastSocket.Client
             /// <returns></returns>
             public Request<TResponse>[] DequeueAll()
             {
-                lock (this)
+                int count = this._queue.Count;
+                List<Request<TResponse>> list = null;
+                while (count-- > 0)
                 {
-                    if (this._queue.Count == 0) return new Request<TResponse>[0];
-
-                    var arr = this._queue.ToArray();
-                    this._queue.Clear();
-                    return arr;
+                    Request<TResponse> request;
+                    if (this._queue.TryDequeue(out request))
+                    {
+                        if (list == null) list = new List<Request<TResponse>>();
+                        list.Add(request);
+                    }
+                    else break;
                 }
+
+                if (list != null) return list.ToArray();
+                return new Request<TResponse>[0];
             }
             #endregion
 
@@ -358,11 +363,12 @@ namespace Sodao.FastSocket.Client
                 List<Request<TResponse>> listSend = null;
                 List<Request<TResponse>> listTimeout = null;
 
-                lock (this)
+                int count = this._queue.Count;
+                while (count-- > 0)
                 {
-                    while (this._queue.Count > 0)
+                    Request<TResponse> request;
+                    if (this._queue.TryDequeue(out request))
                     {
-                        var request = this._queue.Dequeue();
                         if (dtNow.Subtract(request.BeginTime).TotalMilliseconds < this._timeout)
                         {
                             if (listSend == null) listSend = new List<Request<TResponse>>();
@@ -373,6 +379,7 @@ namespace Sodao.FastSocket.Client
                         if (listTimeout == null) listTimeout = new List<Request<TResponse>>();
                         listTimeout.Add(request);
                     }
+                    else break;
                 }
 
                 if (listSend != null)
