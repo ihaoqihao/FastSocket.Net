@@ -53,8 +53,6 @@
     <Compile Include="Utils\ConsistentHashContainer.cs" />
     <Compile Include="Utils\Date.cs" />
     <Compile Include="Utils\DisposableBase.cs" />
-    <Compile Include="Utils\InterlockedQueue.cs" />
-    <Compile Include="Utils\InterlockedStack.cs" />
     <Compile Include="Utils\IPUtility.cs" />
     <Compile Include="Utils\NetworkBitConverter.cs" />
     <Compile Include="Utils\ReflectionHelper.cs" />
