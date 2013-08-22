@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Sodao.FastSocket.SocketBase;
-using Sodao.FastSocket.SocketBase.Utils;
 
 namespace Sodao.FastSocket.Server
 {
@@ -173,7 +173,7 @@ namespace Sodao.FastSocket.Server
             private const int MAXPOOLSIZE = 3000;
             private readonly int _messageBufferSize;
             private readonly Socket _socket = null;
-            private readonly InterlockedStack<SocketAsyncEventArgs> _stack = new InterlockedStack<SocketAsyncEventArgs>();
+            private readonly ConcurrentStack<SocketAsyncEventArgs> _stack = new ConcurrentStack<SocketAsyncEventArgs>();
             #endregion
 
             #region Constructors
