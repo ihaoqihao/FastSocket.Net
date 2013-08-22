@@ -88,17 +88,27 @@ namespace Sodao.FastSocket.Client
         {
         }
         /// <summary>
+        /// OnResponse
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="response"></param>
+        protected virtual void OnResponse(IConnection connection, TResponse response)
+        {
+        }
+        /// <summary>
         /// on request send success
         /// </summary>
+        /// <param name="connection"></param>
         /// <param name="request"></param>
-        protected virtual void OnSendSucess(Request<TResponse> request)
+        protected virtual void OnSendSucess(IConnection connection, Request<TResponse> request)
         {
         }
         /// <summary>
         /// on request send failed
         /// </summary>
+        /// <param name="connection"></param>
         /// <param name="request"></param>
-        protected virtual void OnSendFailed(Request<TResponse> request)
+        protected virtual void OnSendFailed(IConnection connection, Request<TResponse> request)
         {
             this.Send(request);
         }
@@ -181,7 +191,7 @@ namespace Sodao.FastSocket.Client
             {
                 request.ConnectionID = connection.ConnectionID;
                 request.SentTime = DateTime.UtcNow;
-                this.OnSendSucess(request);
+                this.OnSendSucess(connection, request);
                 return;
             }
 
@@ -191,14 +201,15 @@ namespace Sodao.FastSocket.Client
 
             if (DateTime.UtcNow.Subtract(request.BeginTime).TotalMilliseconds < this._millisecondsSendTimeout)
             {
-                this.OnSendFailed(request);
+                this.OnSendFailed(connection, request);
                 return;
             }
 
             //time out
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                try { request.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName)); }
+                var ex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
+                try { request.SetException(ex); }
                 catch { }
             });
         }
@@ -227,8 +238,10 @@ namespace Sodao.FastSocket.Client
 
             if (response != null)
             {
+                this.OnResponse(connection, response);
+
                 var request = this._requestCollection.Remove(response.SeqID);
-                if (request == null) this.HandleUnknowResponse(connection, response);
+                if (request == null) ThreadPool.QueueUserWorkItem(_ => { try { this.HandleUnknowResponse(connection, response); } catch { } });
                 else ThreadPool.QueueUserWorkItem(_ => { try { request.SetResult(response); } catch { } });
             }
             e.SetReadlength(readlength);
