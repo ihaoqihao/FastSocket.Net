@@ -117,19 +117,23 @@ namespace Sodao.FastSocket.Client
             {
                 socket.BeginConnect(endPoint, ar =>
                 {
-                    bool success = false;
-                    try { socket.EndConnect(ar); success = true; }
-                    catch { }
-
-                    if (success)
+                    try
                     {
+                        socket.EndConnect(ar);
                         socket.NoDelay = true;
                         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
                         socket.ReceiveBufferSize = host.SocketBufferSize;
                         socket.SendBufferSize = host.SocketBufferSize;
-                        callback(new SocketBase.DefaultConnection(host.NextConnectionID(), socket, host));
                     }
-                    else callback(null);
+                    catch
+                    {
+                        try { socket.Close(); socket.Dispose(); }
+                        catch { }
+
+                        callback(null); return;
+                    }
+
+                    callback(new SocketBase.DefaultConnection(host.NextConnectionID(), socket, host));
                 }, null);
             }
             catch { callback(null); }
