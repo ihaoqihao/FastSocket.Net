@@ -208,9 +208,9 @@ namespace Sodao.FastSocket.Client
             //time out
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                var ex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
-                try { request.SetException(ex); }
-                catch { }
+                var rex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
+                try { request.SetException(rex); }
+                catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
             });
         }
         /// <summary>
@@ -241,8 +241,18 @@ namespace Sodao.FastSocket.Client
                 this.OnResponse(connection, response);
 
                 var request = this._requestCollection.Remove(response.SeqID);
-                if (request == null) ThreadPool.QueueUserWorkItem(_ => { try { this.HandleUnknowResponse(connection, response); } catch { } });
-                else ThreadPool.QueueUserWorkItem(_ => { try { request.SetResult(response); } catch { } });
+                if (request == null)
+                    ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        try { this.HandleUnknowResponse(connection, response); }
+                        catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                    });
+                else
+                    ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        try { request.SetResult(response); }
+                        catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                    });
             }
             e.SetReadlength(readlength);
         }
@@ -262,7 +272,11 @@ namespace Sodao.FastSocket.Client
             for (int i = 0, l = arrRemoved.Length; i < l; i++)
             {
                 var r = arrRemoved[i]; if (r == null) continue;
-                ThreadPool.QueueUserWorkItem(c => { try { r.SetException(ex2); } catch { } });
+                ThreadPool.QueueUserWorkItem(c =>
+                {
+                    try { r.SetException(ex2); }
+                    catch (Exception unknowEx) { System.Diagnostics.Trace.TraceError(unknowEx.ToString()); }
+                });
             }
         }
         #endregion
@@ -394,9 +408,8 @@ namespace Sodao.FastSocket.Client
                         var r = listTimeout[i];
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
-                            var ex = new RequestException(RequestException.Errors.PendingSendTimeout, r.CmdName);
-                            try { r.SetException(ex); }
-                            catch { }
+                            try { r.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, r.CmdName)); }
+                            catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
                         });
                     }
                 }
@@ -499,9 +512,8 @@ namespace Sodao.FastSocket.Client
                     if (this._dic.TryRemove(arrTimeout[i].Key, out removed))
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
-                            var ex = new RequestException(RequestException.Errors.ReceiveTimeout, removed.CmdName);
-                            try { removed.SetException(ex); }
-                            catch { }
+                            try { removed.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, removed.CmdName)); }
+                            catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
                         });
                 }
             }

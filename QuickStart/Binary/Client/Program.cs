@@ -7,6 +7,8 @@ namespace Client
     {
         static void Main(string[] args)
         {
+            System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.ConsoleTraceListener());
+
             var client = new Sodao.FastSocket.Client.AsyncBinarySocketClient(8192, 8192, 3000, 3000);
             //注册服务器节点，这里可注册多个(name不能重复）
             client.RegisterServerNode("127.0.0.1:8401", new System.Net.IPEndPoint(System.Net.IPAddress.Parse("127.0.0.1"), 8401));

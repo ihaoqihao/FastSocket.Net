@@ -160,6 +160,8 @@ namespace Sodao.FastSocket.SocketBase
         /// <param name="ex"></param>
         protected virtual void OnError(IConnection connection, Exception ex)
         {
+            if (ex is SocketException) return;
+            System.Diagnostics.Trace.TraceError(ex.ToString());
         }
         #endregion
 

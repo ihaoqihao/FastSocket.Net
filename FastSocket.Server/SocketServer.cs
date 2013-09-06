@@ -153,7 +153,12 @@ namespace Sodao.FastSocket.Server
                 return;
             }
 
-            if (cmdInfo != null) ThreadPool.QueueUserWorkItem(_ => { try { this._socketService.OnReceived(connection, cmdInfo); } catch { } });
+            if (cmdInfo != null)
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try { this._socketService.OnReceived(connection, cmdInfo); }
+                    catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                });
             e.SetReadlength(readlength);
         }
         /// <summary>

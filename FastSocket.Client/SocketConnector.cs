@@ -125,11 +125,12 @@ namespace Sodao.FastSocket.Client
                         socket.ReceiveBufferSize = host.SocketBufferSize;
                         socket.SendBufferSize = host.SocketBufferSize;
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         try { socket.Close(); socket.Dispose(); }
                         catch { }
 
+                        System.Diagnostics.Trace.TraceError(ex.ToString());
                         callback(null); return;
                     }
 

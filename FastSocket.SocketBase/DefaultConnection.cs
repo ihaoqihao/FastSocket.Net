@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -52,7 +53,10 @@ namespace Sodao.FastSocket.SocketBase
                 this.LocalEndPoint = (IPEndPoint)socket.LocalEndPoint;
                 this.RemoteEndPoint = (IPEndPoint)socket.RemoteEndPoint;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Trace.TraceError(string.Concat("get socket endPoint error. ", ex.ToString()));
+            }
 
             //init for send...
             this._saeSend = host.GetSocketAsyncEventArgs();
@@ -255,7 +259,7 @@ namespace Sodao.FastSocket.SocketBase
             {
                 this.BeginDisconnect(ex);
                 this.OnSendCallback(new SendCallbackEventArgs(packet, SendCallbackStatus.Failed));
-                if (!(ex is SocketException)) this.OnError(ex);
+                this.OnError(ex);
             }
 
             if (!completedAsync) this.SendAsyncCompleted(this, e);
@@ -270,12 +274,14 @@ namespace Sodao.FastSocket.SocketBase
             var packet = this._currSendingPacket;
             if (packet == null)
             {
-                this.BeginDisconnect(new Exception(string.Concat("未知的错误, connection state:",
+                var ex = new Exception(string.Concat("未知的错误, connection state:",
                     this.Active.ToString(),
                     " conectionID:",
                     this.ConnectionID.ToString(),
                     " remote address:",
-                    this.RemoteEndPoint.ToString())));
+                    this.RemoteEndPoint.ToString()));
+                this.OnError(ex);
+                this.BeginDisconnect(ex);
                 return;
             }
 
@@ -302,7 +308,7 @@ namespace Sodao.FastSocket.SocketBase
                 {
                     this.BeginDisconnect(ex);
                     this.OnSendCallback(new SendCallbackEventArgs(packet, SendCallbackStatus.Failed));
-                    if (!(ex is SocketException)) this.OnError(ex);
+                    this.OnError(ex);
                 }
 
                 if (!completedAsync) this.SendAsyncCompleted(sender, e);
@@ -345,7 +351,7 @@ namespace Sodao.FastSocket.SocketBase
             catch (Exception ex)
             {
                 this.BeginDisconnect(ex);
-                if (!(ex is SocketException)) this.OnError(ex);
+                this.OnError(ex);
             }
 
             if (!completedAsync) this.ReceiveAsyncCompleted(this, e);
