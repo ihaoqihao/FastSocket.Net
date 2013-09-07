@@ -52,10 +52,7 @@ namespace Sodao.FastSocket.SocketBase
                 this.LocalEndPoint = (IPEndPoint)socket.LocalEndPoint;
                 this.RemoteEndPoint = (IPEndPoint)socket.RemoteEndPoint;
             }
-            catch (Exception ex)
-            {
-                Log.Logger.Error("get socket endPoint error.", ex);
-            }
+            catch (Exception ex) { Log.Trace.Error("get socket endPoint error.", ex); }
 
             //init for send...
             this._saeSend = host.GetSocketAsyncEventArgs();
@@ -430,7 +427,11 @@ namespace Sodao.FastSocket.SocketBase
                 this._socket.Shutdown(SocketShutdown.Both);
                 this._socket.BeginDisconnect(false, this.DisconnectCallback, ex);
             }
-            catch { this.DisconnectCallback(null); }
+            catch (Exception ex2)
+            {
+                Log.Trace.Error(ex2.Message, ex2);
+                this.DisconnectCallback(null);
+            }
         }
         /// <summary>
         /// disconnect callback
@@ -440,10 +441,13 @@ namespace Sodao.FastSocket.SocketBase
         {
             if (result != null)
             {
-                try { this._socket.EndDisconnect(result); }
-                catch { }
+                try
+                {
+                    this._socket.EndDisconnect(result);
+                    this._socket.Close();
+                }
+                catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
             }
-            this._socket.Close();
 
             //fire disconnected.
             this.OnDisconnected(result == null ? null : result.AsyncState as Exception);

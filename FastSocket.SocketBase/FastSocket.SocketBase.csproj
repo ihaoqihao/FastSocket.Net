@@ -41,10 +41,11 @@
     <Compile Include="ConnectionCollection.cs" />
     <Compile Include="DefaultConnection.cs" />
     <Compile Include="Events\StartSendingHandler.cs" />
-    <Compile Include="Log\ConsoleLogListener.cs" />
-    <Compile Include="Log\ILogListener.cs" />
-    <Compile Include="Log\Logger.cs" />
-    <Compile Include="Log\LogListenerWrapper.cs" />
+    <Compile Include="Log\ConsoleListener.cs" />
+    <Compile Include="Log\DiagnosticListener.cs" />
+    <Compile Include="Log\ITraceListener.cs" />
+    <Compile Include="Log\Trace.cs" />
+    <Compile Include="Log\ListenerWrapper.cs" />
     <Compile Include="Packet.cs" />
     <Compile Include="Events\DisconnectedHandler.cs" />
     <Compile Include="Events\ErrorHandler.cs" />

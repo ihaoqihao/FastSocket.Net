@@ -106,7 +106,7 @@ namespace Sodao.FastSocket.Server
         {
             base.OnConnected(connection);
             try { this._socketService.OnConnected(connection); }
-            catch { }
+            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
         }
         /// <summary>
         /// start sending
@@ -117,7 +117,7 @@ namespace Sodao.FastSocket.Server
         {
             base.OnStartSending(connection, packet);
             try { this._socketService.OnStartSending(connection, packet); }
-            catch { }
+            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
         }
         /// <summary>
         /// send callback
@@ -128,7 +128,7 @@ namespace Sodao.FastSocket.Server
         {
             base.OnSendCallback(connection, e);
             try { this._socketService.OnSendCallback(connection, e); }
-            catch { }
+            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
         }
         /// <summary>
         /// OnMessageReceived
@@ -157,7 +157,7 @@ namespace Sodao.FastSocket.Server
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
                     try { this._socketService.OnReceived(connection, cmdInfo); }
-                    catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
+                    catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
                 });
             e.SetReadlength(readlength);
         }
@@ -170,7 +170,7 @@ namespace Sodao.FastSocket.Server
         {
             base.OnDisconnected(connection, ex);
             try { this._socketService.OnDisconnected(connection, ex); }
-            catch { }
+            catch (Exception ex2) { SocketBase.Log.Trace.Error(ex.Message, ex2); }
         }
         /// <summary>
         /// onError
@@ -181,7 +181,7 @@ namespace Sodao.FastSocket.Server
         {
             base.OnError(connection, ex);
             try { this._socketService.OnException(connection, ex); }
-            catch { }
+            catch (Exception ex2) { SocketBase.Log.Trace.Error(ex.Message, ex2); }
         }
         #endregion
     }

@@ -23,7 +23,7 @@ namespace Sodao.FastSocket.SocketBase.Utils
             if (dueTime == 0)
             {
                 try { callback(); }
-                catch { }
+                catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
                 return;
             }
 
@@ -32,7 +32,7 @@ namespace Sodao.FastSocket.SocketBase.Utils
             {
                 timer.Dispose();
                 try { callback(); }
-                catch { }
+                catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
             }, null, dueTime, Timeout.Infinite);
         }
     }

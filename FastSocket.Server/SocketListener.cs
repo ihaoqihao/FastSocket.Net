@@ -96,12 +96,11 @@ namespace Sodao.FastSocket.Server
         /// <param name="socket"></param>
         private void AcceptAsync(Socket socket)
         {
-            if (socket == null)
-                return;
+            if (socket == null) return;
 
             bool asyncCompleted = true;
             try { asyncCompleted = this._socket.AcceptAsync(this._ae); }
-            catch { }
+            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
 
             if (!asyncCompleted) this.AcceptAsyncCompleted(this, this._ae);
         }

@@ -113,8 +113,9 @@ namespace Sodao.FastSocket.SocketBase
         /// <param name="connection"></param>
         protected virtual void OnConnected(IConnection connection)
         {
-            Log.Logger.Debug(string.Concat("socket connected, id:", connection.ConnectionID.ToString(),
-                ", remot endPoint:", connection.RemoteEndPoint == null ? string.Empty : connection.RemoteEndPoint.ToString()));
+            Log.Trace.Debug(string.Concat("socket connected, id:", connection.ConnectionID.ToString(),
+                ", remot endPoint:", connection.RemoteEndPoint == null ? string.Empty : connection.RemoteEndPoint.ToString(),
+                ", local endPoint:", connection.LocalEndPoint == null ? string.Empty : connection.LocalEndPoint.ToString()));
         }
         /// <summary>
         /// OnStartSending
@@ -155,8 +156,9 @@ namespace Sodao.FastSocket.SocketBase
             connection.Disconnected -= new DisconnectedHandler(this.OnDisconnected);
             connection.Error -= new ErrorHandler(this.OnError);
 
-            Log.Logger.Debug(string.Concat("socket disconnected, id:", connection.ConnectionID.ToString(),
+            Log.Trace.Debug(string.Concat("socket disconnected, id:", connection.ConnectionID.ToString(),
                 ", remot endPoint:", connection.RemoteEndPoint == null ? string.Empty : connection.RemoteEndPoint.ToString(),
+                ", local endPoint:", connection.LocalEndPoint == null ? string.Empty : connection.LocalEndPoint.ToString(),
                 ex == null ? string.Empty : string.Concat(", reason is: ", ex.ToString())));
         }
         /// <summary>
@@ -166,7 +168,7 @@ namespace Sodao.FastSocket.SocketBase
         /// <param name="ex"></param>
         protected virtual void OnError(IConnection connection, Exception ex)
         {
-            Log.Logger.Error(ex.Message, ex);
+            Log.Trace.Error(ex.Message, ex);
         }
         #endregion
 

@@ -87,9 +87,9 @@ namespace Sodao.FastSocket.Server
                 try { cmdInfo = this._protocol.FindCommandInfo(new ArraySegment<byte>(e.Buffer, 0, e.BytesTransferred)); }
                 catch (Exception ex)
                 {
-                    SocketBase.Log.Logger.Error(ex.Message, ex);
+                    SocketBase.Log.Trace.Error(ex.Message, ex);
                     try { this._service.OnError(new UdpSession(e.RemoteEndPoint, this), ex); }
-                    catch { }
+                    catch (Exception ex2) { SocketBase.Log.Trace.Error(ex2.Message, ex2); }
                 }
 
                 if (cmdInfo != null)
@@ -99,9 +99,9 @@ namespace Sodao.FastSocket.Server
                         try { this._service.OnReceived(new UdpSession(e.RemoteEndPoint, this), cmdInfo); }
                         catch (Exception ex)
                         {
-                            SocketBase.Log.Logger.Error(ex.Message, ex);
+                            SocketBase.Log.Trace.Error(ex.Message, ex);
                             try { this._service.OnError(new UdpSession(e.RemoteEndPoint, this), ex); }
-                            catch { }
+                            catch (Exception ex2) { SocketBase.Log.Trace.Error(ex2.Message, ex2); }
                         }
                     });
                 }

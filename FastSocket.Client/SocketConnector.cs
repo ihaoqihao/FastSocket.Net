@@ -112,7 +112,7 @@ namespace Sodao.FastSocket.Client
             if (host == null) throw new ArgumentNullException("host");
             if (callback == null) throw new ArgumentNullException("callback");
 
-            SocketBase.Log.Logger.Debug(string.Concat("begin connect to ", endPoint.ToString()));
+            SocketBase.Log.Trace.Debug(string.Concat("begin connect to ", endPoint.ToString()));
 
             var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             try
@@ -129,17 +129,25 @@ namespace Sodao.FastSocket.Client
                     }
                     catch (Exception ex)
                     {
-                        try { socket.Close(); socket.Dispose(); }
+                        try
+                        {
+                            socket.Close();
+                            socket.Dispose();
+                        }
                         catch { }
 
-                        SocketBase.Log.Logger.Error(ex.Message, ex);
+                        SocketBase.Log.Trace.Error(ex.Message, ex);
                         callback(null); return;
                     }
 
                     callback(new SocketBase.DefaultConnection(host.NextConnectionID(), socket, host));
                 }, null);
             }
-            catch { callback(null); }
+            catch (Exception ex)
+            {
+                SocketBase.Log.Trace.Error(ex.Message, ex);
+                callback(null);
+            }
         }
         #endregion
     }
