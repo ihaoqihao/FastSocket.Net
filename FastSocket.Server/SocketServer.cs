@@ -157,7 +157,7 @@ namespace Sodao.FastSocket.Server
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
                     try { this._socketService.OnReceived(connection, cmdInfo); }
-                    catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                    catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
                 });
             e.SetReadlength(readlength);
         }

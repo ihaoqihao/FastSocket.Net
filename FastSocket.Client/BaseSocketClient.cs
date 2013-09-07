@@ -210,7 +210,7 @@ namespace Sodao.FastSocket.Client
             {
                 var rex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
                 try { request.SetException(rex); }
-                catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
             });
         }
         /// <summary>
@@ -245,13 +245,13 @@ namespace Sodao.FastSocket.Client
                     ThreadPool.QueueUserWorkItem(_ =>
                     {
                         try { this.HandleUnknowResponse(connection, response); }
-                        catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                        catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
                     });
                 else
                     ThreadPool.QueueUserWorkItem(_ =>
                     {
                         try { request.SetResult(response); }
-                        catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                        catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
                     });
             }
             e.SetReadlength(readlength);
@@ -275,7 +275,7 @@ namespace Sodao.FastSocket.Client
                 ThreadPool.QueueUserWorkItem(c =>
                 {
                     try { r.SetException(ex2); }
-                    catch (Exception unknowEx) { System.Diagnostics.Trace.TraceError(unknowEx.ToString()); }
+                    catch (Exception unknowEx) { SocketBase.Log.Logger.Error(ex.Message, unknowEx); }
                 });
             }
         }
@@ -409,7 +409,7 @@ namespace Sodao.FastSocket.Client
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
                             try { r.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, r.CmdName)); }
-                            catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                            catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
                         });
                     }
                 }
@@ -513,7 +513,7 @@ namespace Sodao.FastSocket.Client
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
                             try { removed.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, removed.CmdName)); }
-                            catch (Exception ex) { System.Diagnostics.Trace.TraceError(ex.ToString()); }
+                            catch (Exception ex) { SocketBase.Log.Logger.Error(ex.Message, ex); }
                         });
                 }
             }

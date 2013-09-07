@@ -112,6 +112,8 @@ namespace Sodao.FastSocket.Client
             if (host == null) throw new ArgumentNullException("host");
             if (callback == null) throw new ArgumentNullException("callback");
 
+            SocketBase.Log.Logger.Debug(string.Concat("begin connect to ", endPoint.ToString()));
+
             var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             try
             {
@@ -130,7 +132,7 @@ namespace Sodao.FastSocket.Client
                         try { socket.Close(); socket.Dispose(); }
                         catch { }
 
-                        System.Diagnostics.Trace.TraceError(ex.ToString());
+                        SocketBase.Log.Logger.Error(ex.Message, ex);
                         callback(null); return;
                     }
 

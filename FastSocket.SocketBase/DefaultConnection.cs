@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -55,7 +54,7 @@ namespace Sodao.FastSocket.SocketBase
             }
             catch (Exception ex)
             {
-                Trace.TraceError(string.Concat("get socket endPoint error. ", ex.ToString()));
+                Log.Logger.Error("get socket endPoint error.", ex);
             }
 
             //init for send...
@@ -147,7 +146,8 @@ namespace Sodao.FastSocket.SocketBase
             this._sendQueue = null;
             if (arrPacket != null && arrPacket.Length > 0)
             {
-                foreach (var packet in arrPacket) this.OnSendCallback(new SendCallbackEventArgs(packet, SendCallbackStatus.Failed));
+                foreach (var packet in arrPacket)
+                    this.OnSendCallback(new SendCallbackEventArgs(packet, SendCallbackStatus.Failed));
             }
 
             this._saeSend.Completed -= new EventHandler<SocketAsyncEventArgs>(this.SendAsyncCompleted);
@@ -479,7 +479,7 @@ namespace Sodao.FastSocket.SocketBase
 
                     if (this._isSending)
                     {
-                        if (this._queue.Count < 1000)
+                        if (this._queue.Count < 500)
                         {
                             this._queue.Enqueue(packet);
                             return SendResult.Enqueued;
