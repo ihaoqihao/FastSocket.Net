@@ -58,7 +58,7 @@ namespace Sodao.FastSocket.Client
         /// <summary>
         /// server available event
         /// </summary>
-        public event Action ServerAvailable;
+        public event Action<string, SocketBase.IConnection> ServerAvailable;
 
         /// <summary>
         /// try register server node.
@@ -165,7 +165,7 @@ namespace Sodao.FastSocket.Client
             //disconnect not active node connection.
             if (!isActive) connection.BeginDisconnect();
             //fire server available event.
-            if (isActive && this.ServerAvailable != null) this.ServerAvailable();
+            if (isActive && this.ServerAvailable != null) this.ServerAvailable(node.Name, connection);
         }
         /// <summary>
         /// on disconnected
