@@ -386,8 +386,7 @@ namespace Sodao.FastSocket.Client
                         if (dtNow.Subtract(request.BeginTime).TotalMilliseconds < this._timeout)
                         {
                             if (listSend == null) listSend = new List<Request<TResponse>>();
-                            listSend.Add(request);
-                            continue;
+                            listSend.Add(request); continue;
                         }
 
                         if (listTimeout == null) listTimeout = new List<Request<TResponse>>();
@@ -503,7 +502,8 @@ namespace Sodao.FastSocket.Client
                 if (this._dic.Count == 0) return;
 
                 var dtNow = DateTime.UtcNow;
-                var arrTimeout = this._dic.Where(c => dtNow.Subtract(c.Value.SentTime).TotalMilliseconds > this._timeout).ToArray();
+                var arrTimeout = this._dic.Where(c => dtNow.Subtract(c.Value.SentTime).TotalMilliseconds >
+                    (c.Value.MillisecondsReceiveTimeout > 0 ? c.Value.MillisecondsReceiveTimeout : this._timeout)).ToArray();
                 if (arrTimeout.Length == 0) return;
 
                 for (int i = 0, l = arrTimeout.Length; i < l; i++)

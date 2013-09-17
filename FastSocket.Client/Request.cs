@@ -23,6 +23,11 @@ namespace Sodao.FastSocket.Client
         public readonly string CmdName;
 
         /// <summary>
+        /// get or set receive time out
+        /// </summary>
+        public int MillisecondsReceiveTimeout;
+
+        /// <summary>
         /// connectionID
         /// </summary>
         internal long ConnectionID = -1;
@@ -77,7 +82,7 @@ namespace Sodao.FastSocket.Client
             this._onException = onException;
             this._onResult = onResult;
         }
-        #endregion        
+        #endregion
 
         #region Public Methods
         /// <summary>
