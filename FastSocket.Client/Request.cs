@@ -30,7 +30,7 @@ namespace Sodao.FastSocket.Client
         /// <summary>
         /// connectionID
         /// </summary>
-        internal long ConnectionID = -1;
+        internal SocketBase.IConnection CurrConnection = null;
         /// <summary>
         /// sent time
         /// </summary>

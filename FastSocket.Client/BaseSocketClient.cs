@@ -57,7 +57,7 @@ namespace Sodao.FastSocket.Client
             this._millisecondsReceiveTimeout = millisecondsReceiveTimeout;
 
             this._pendingQueue = new PendingSendQueue(this, millisecondsSendTimeout);
-            this._requestCollection = new RequestCollection(millisecondsReceiveTimeout);
+            this._requestCollection = new RequestCollection(this, millisecondsReceiveTimeout);
         }
         #endregion
 
@@ -111,6 +111,21 @@ namespace Sodao.FastSocket.Client
         protected virtual void OnSendFailed(IConnection connection, Request<TResponse> request)
         {
             this.Send(request);
+        }
+        /// <summary>
+        /// on request send timeout
+        /// </summary>
+        /// <param name="request"></param>
+        protected virtual void OnSendTimeout(Request<TResponse> request)
+        {
+        }
+        /// <summary>
+        /// on request receive timeout
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="request"></param>
+        protected virtual void OnReceiveTimeout(IConnection connection, Request<TResponse> request)
+        {
         }
         /// <summary>
         /// send request
@@ -189,13 +204,13 @@ namespace Sodao.FastSocket.Client
 
             if (e.Status == SendCallbackStatus.Success)
             {
-                request.ConnectionID = connection.ConnectionID;
+                request.CurrConnection = connection;
                 request.SentTime = DateTime.UtcNow;
                 this.OnSendSucess(connection, request);
                 return;
             }
 
-            request.ConnectionID = -1;
+            request.CurrConnection = null;
             request.SentTime = DateTime.MaxValue;
             if (this._requestCollection.Remove(request.SeqID) == null) return;
 
@@ -206,6 +221,8 @@ namespace Sodao.FastSocket.Client
             }
 
             //time out
+            this.OnSendTimeout(request);
+
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 var rex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
@@ -265,7 +282,7 @@ namespace Sodao.FastSocket.Client
         {
             base.OnDisconnected(connection, ex);
 
-            var arrRemoved = this._requestCollection.Remove(connection.ConnectionID);
+            var arrRemoved = this._requestCollection.Remove(connection);
             if (arrRemoved.Length == 0) return;
 
             var ex2 = ex ?? new SocketException((int)SocketError.Disconnecting);
@@ -405,6 +422,7 @@ namespace Sodao.FastSocket.Client
                     for (int i = 0, l = listTimeout.Count; i < l; i++)
                     {
                         var r = listTimeout[i];
+                        this._client.OnSendTimeout(r);
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
                             try { r.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, r.CmdName)); }
@@ -424,6 +442,8 @@ namespace Sodao.FastSocket.Client
         private class RequestCollection
         {
             #region Private Members
+            private readonly BaseSocketClient<TResponse> _client = null;
+
             private readonly int _timeout;
             private readonly Timer _timer = null;
             private readonly ConcurrentDictionary<int, Request<TResponse>> _dic = new ConcurrentDictionary<int, Request<TResponse>>();
@@ -441,9 +461,11 @@ namespace Sodao.FastSocket.Client
             /// <summary>
             /// new
             /// </summary>
+            /// <param name="client"></param>
             /// <param name="millisecondsReceiveTimeout"></param>
-            public RequestCollection(int millisecondsReceiveTimeout)
+            public RequestCollection(BaseSocketClient<TResponse> client, int millisecondsReceiveTimeout)
             {
+                this._client = client;
                 this._timeout = millisecondsReceiveTimeout;
 
                 this._timer = new Timer(_ =>
@@ -478,11 +500,11 @@ namespace Sodao.FastSocket.Client
             /// <summary>
             /// clear
             /// </summary>
-            /// <param name="connectionID"></param>
+            /// <param name="connection"></param>
             /// <returns></returns>
-            public Request<TResponse>[] Remove(long connectionID)
+            public Request<TResponse>[] Remove(IConnection connection)
             {
-                var items = this._dic.Where(c => c.Value.ConnectionID == connectionID).ToArray();
+                var items = this._dic.Where(c => c.Value.CurrConnection == connection).ToArray();
                 var arrRemoved = new Request<TResponse>[items.Length];
                 for (int i = 0, l = items.Length; i < l; i++)
                 {
@@ -510,11 +532,15 @@ namespace Sodao.FastSocket.Client
                 {
                     Request<TResponse> removed;
                     if (this._dic.TryRemove(arrTimeout[i].Key, out removed))
+                    {
+                        this._client.OnReceiveTimeout(removed.CurrConnection, removed);
+
                         ThreadPool.QueueUserWorkItem(_ =>
                         {
                             try { removed.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, removed.CmdName)); }
                             catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
                         });
+                    }
                 }
             }
             #endregion
