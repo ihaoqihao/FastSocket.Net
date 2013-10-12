@@ -15,25 +15,24 @@ namespace Client
             client.RegisterServerNode("127.0.0.1:8401", new System.Net.IPEndPoint(System.Net.IPAddress.Parse("127.0.0.1"), 8401));
             //client.RegisterServerNode("127.0.0.1:8402", new System.Net.IPEndPoint(System.Net.IPAddress.Parse("127.0.0.2"), 8401));
 
-            //组织sum参数, 格式为<<i:32-limit-endian,....N>>
-            //这里的参数其实也可以使用thrift, protobuf, bson, json等进行序列化，
-            byte[] bytes = null;
-            using (var ms = new System.IO.MemoryStream())
+            for (int j = 0; j < 10000; j++)
             {
-                for (int i = 1; i <= 1000; i++) ms.Write(BitConverter.GetBytes(i), 0, 4);
-                bytes = ms.ToArray();
-            }
-            //发送sum命令
-            client.Send("sum", bytes, res => BitConverter.ToInt32(res.Buffer, 0)).ContinueWith(c =>
-            {
-                if (c.IsFaulted)
+                //组织sum参数, 格式为<<i:32-limit-endian,....N>>
+                //这里的参数其实也可以使用thrift, protobuf, bson, json等进行序列化，
+                byte[] bytes = null;
+                using (var ms = new System.IO.MemoryStream())
                 {
-                    // Console.WriteLine(c.Exception.ToString());
-                    return;
+                    for (int i = j; i <= j + 10; i++) ms.Write(BitConverter.GetBytes(i), 0, 4);
+                    bytes = ms.ToArray();
                 }
-                // Console.WriteLine(c.Result);
-            });
 
+                //发送sum命令
+                client.Send("sum", bytes, res => BitConverter.ToInt32(res.Buffer, 0)).ContinueWith(c =>
+                {
+                    if (c.IsFaulted) { Console.WriteLine(c.Exception.ToString()); return; }
+                    Console.WriteLine(c.Result);
+                });
+            }
             Console.ReadLine();
         }
     }
