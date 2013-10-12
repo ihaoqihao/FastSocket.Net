@@ -56,9 +56,12 @@ namespace Sodao.FastSocket.Server
                 var objService = Activator.CreateInstance(tService);
                 if (objService == null) throw new InvalidOperationException("serviceType");
 
+                var objScheduler = GetScheduler(serverConfig.SchedulerType);
+
                 //init host.
                 var host = Activator.CreateInstance(typeof(SocketServer<>).MakeGenericType(
                     serviceFace.GetGenericArguments()),
+                    objScheduler,
                     objService,
                     objProtocol,
                     serverConfig.SocketBufferSize,
@@ -70,6 +73,16 @@ namespace Sodao.FastSocket.Server
 
                 _listHosts.Add(host);
             }
+        }
+        /// <summary>
+        /// get scheduler
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        static public IScheduler GetScheduler(string type)
+        {
+            if (type == "default") return new ThreadPoolScheduler();
+            return Activator.CreateInstance(Type.GetType(type, false)) as IScheduler;
         }
         /// <summary>
         /// get protocol.

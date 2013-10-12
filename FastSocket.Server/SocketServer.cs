@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Threading;
 
 namespace Sodao.FastSocket.Server
 {
@@ -13,6 +12,7 @@ namespace Sodao.FastSocket.Server
     {
         #region Private Members
         private readonly List<SocketListener> _listListener = new List<SocketListener>();
+        private readonly IScheduler _scheduler = null;
         private readonly ISocketService<TCommandInfo> _socketService = null;
         private readonly Protocol.IProtocol<TCommandInfo> _protocol = null;
         private readonly int _maxMessageSize;
@@ -23,6 +23,7 @@ namespace Sodao.FastSocket.Server
         /// <summary>
         /// new
         /// </summary>
+        /// <param name="scheduler"></param>
         /// <param name="socketService"></param>
         /// <param name="protocol"></param>
         /// <param name="socketBufferSize"></param>
@@ -33,7 +34,8 @@ namespace Sodao.FastSocket.Server
         /// <exception cref="ArgumentNullException">protocol is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">maxMessageSize</exception>
         /// <exception cref="ArgumentOutOfRangeException">maxConnections</exception>
-        public SocketServer(ISocketService<TCommandInfo> socketService,
+        public SocketServer(IScheduler scheduler,
+            ISocketService<TCommandInfo> socketService,
             Protocol.IProtocol<TCommandInfo> protocol,
             int socketBufferSize,
             int messageBufferSize,
@@ -41,11 +43,13 @@ namespace Sodao.FastSocket.Server
             int maxConnections)
             : base(socketBufferSize, messageBufferSize)
         {
+            if (scheduler == null) throw new ArgumentNullException("scheduler");
             if (socketService == null) throw new ArgumentNullException("socketService");
             if (protocol == null) throw new ArgumentNullException("protocol");
             if (maxMessageSize < 1) throw new ArgumentOutOfRangeException("maxMessageSize");
             if (maxConnections < 1) throw new ArgumentOutOfRangeException("maxConnections");
 
+            this._scheduler = scheduler;
             this._socketService = socketService;
             this._protocol = protocol;
             this._maxMessageSize = maxMessageSize;
@@ -105,8 +109,11 @@ namespace Sodao.FastSocket.Server
         protected override void OnConnected(SocketBase.IConnection connection)
         {
             base.OnConnected(connection);
-            try { this._socketService.OnConnected(connection); }
-            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            this._scheduler.Post(_ =>
+            {
+                try { this._socketService.OnConnected(connection); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
         }
         /// <summary>
         /// start sending
@@ -116,8 +123,11 @@ namespace Sodao.FastSocket.Server
         protected override void OnStartSending(SocketBase.IConnection connection, SocketBase.Packet packet)
         {
             base.OnStartSending(connection, packet);
-            try { this._socketService.OnStartSending(connection, packet); }
-            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            this._scheduler.Post(_ =>
+            {
+                try { this._socketService.OnStartSending(connection, packet); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
         }
         /// <summary>
         /// send callback
@@ -127,8 +137,11 @@ namespace Sodao.FastSocket.Server
         protected override void OnSendCallback(SocketBase.IConnection connection, SocketBase.SendCallbackEventArgs e)
         {
             base.OnSendCallback(connection, e);
-            try { this._socketService.OnSendCallback(connection, e); }
-            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            this._scheduler.Post(_ =>
+            {
+                try { this._socketService.OnSendCallback(connection, e); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
         }
         /// <summary>
         /// OnMessageReceived
@@ -154,7 +167,7 @@ namespace Sodao.FastSocket.Server
             }
 
             if (cmdInfo != null)
-                ThreadPool.QueueUserWorkItem(_ =>
+                this._scheduler.Post(_ =>
                 {
                     try { this._socketService.OnReceived(connection, cmdInfo); }
                     catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
@@ -169,8 +182,11 @@ namespace Sodao.FastSocket.Server
         protected override void OnDisconnected(SocketBase.IConnection connection, Exception ex)
         {
             base.OnDisconnected(connection, ex);
-            try { this._socketService.OnDisconnected(connection, ex); }
-            catch (Exception ex2) { SocketBase.Log.Trace.Error(ex.Message, ex2); }
+            this._scheduler.Post(_ =>
+            {
+                try { this._socketService.OnDisconnected(connection, ex); }
+                catch (Exception ex2) { SocketBase.Log.Trace.Error(ex.Message, ex2); }
+            });
         }
         /// <summary>
         /// onError
@@ -180,8 +196,11 @@ namespace Sodao.FastSocket.Server
         protected override void OnError(SocketBase.IConnection connection, Exception ex)
         {
             base.OnError(connection, ex);
-            try { this._socketService.OnException(connection, ex); }
-            catch (Exception ex2) { SocketBase.Log.Trace.Error(ex.Message, ex2); }
+            this._scheduler.Post(_ =>
+            {
+                try { this._socketService.OnException(connection, ex); }
+                catch (Exception ex2) { SocketBase.Log.Trace.Error(ex.Message, ex2); }
+            });
         }
         #endregion
     }
