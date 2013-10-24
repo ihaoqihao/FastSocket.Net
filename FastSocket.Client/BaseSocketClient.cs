@@ -194,15 +194,16 @@ namespace Sodao.FastSocket.Client
         /// OnSendCallback
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="e"></param>
-        protected override void OnSendCallback(IConnection connection, SendCallbackEventArgs e)
+        /// <param name="packet"></param>
+        /// <param name="status"></param>
+        protected override void OnSendCallback(IConnection connection, Packet packet, SendStatus status)
         {
-            base.OnSendCallback(connection, e);
+            base.OnSendCallback(connection, packet, status);
 
-            var request = e.Packet as Request<TResponse>;
+            var request = packet as Request<TResponse>;
             if (request == null) return;
 
-            if (e.Status == SendCallbackStatus.Success)
+            if (status == SendStatus.Success)
             {
                 request.CurrConnection = connection;
                 request.SentTime = DateTime.UtcNow;
@@ -247,7 +248,7 @@ namespace Sodao.FastSocket.Client
             }
             catch (Exception ex)
             {
-                this.OnError(connection, ex);
+                base.OnConnectionError(connection, ex);
                 connection.BeginDisconnect(ex);
                 e.SetReadlength(e.Buffer.Count);
                 return;

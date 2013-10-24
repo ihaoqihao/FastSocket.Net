@@ -13,7 +13,8 @@ namespace Sodao.FastSocket.SocketBase
         /// <summary>
         /// key:ConnectionID
         /// </summary>
-        private readonly ConcurrentDictionary<long, IConnection> _dic = new ConcurrentDictionary<long, IConnection>();
+        private readonly ConcurrentDictionary<long, IConnection> _dic =
+            new ConcurrentDictionary<long, IConnection>();
         #endregion
 
         #region Public Methods

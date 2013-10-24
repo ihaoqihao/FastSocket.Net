@@ -23,8 +23,9 @@ namespace Sodao.FastSocket.Server
         /// 发送回调
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="e"></param>
-        void OnSendCallback(SocketBase.IConnection connection, SocketBase.SendCallbackEventArgs e);
+        /// <param name="packet"></param>
+        /// <param name="status"></param>
+        void OnSendCallback(SocketBase.IConnection connection, SocketBase.Packet packet, SocketBase.SendStatus status);
         /// <summary>
         /// 当接收到客户端新消息时，会调用此方法.
         /// </summary>

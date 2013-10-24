@@ -59,14 +59,9 @@ namespace Sodao.FastSocket.Client
         {
             BeginConnect(this.EndPoint, this.Host, connection =>
             {
-                if (this._isStop)
-                {
-                    if (connection != null) connection.BeginDisconnect(); return;
-                }
-                if (connection == null)
-                {
-                    SocketBase.Utils.TaskEx.Delay(new Random().Next(1500, 3000), this.Start); return;
-                }
+                if (this._isStop) { if (connection != null) connection.BeginDisconnect(); return; }
+                if (connection == null) { SocketBase.Utils.TaskEx.Delay(new Random().Next(1500, 3000), this.Start); return; }
+
                 connection.Disconnected += this.OnDisconnected;
                 this._onConnected(this, connection);
             });
@@ -129,18 +124,14 @@ namespace Sodao.FastSocket.Client
                     }
                     catch (Exception ex)
                     {
-                        try
-                        {
-                            socket.Close();
-                            socket.Dispose();
-                        }
+                        try { socket.Close(); socket.Dispose(); }
                         catch { }
 
                         SocketBase.Log.Trace.Error(ex.Message, ex);
                         callback(null); return;
                     }
 
-                    callback(new SocketBase.DefaultConnection(host.NextConnectionID(), socket, host));
+                    callback(host.NewConnection(socket));
                 }, null);
             }
             catch (Exception ex)

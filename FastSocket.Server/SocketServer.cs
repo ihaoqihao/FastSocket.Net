@@ -65,10 +65,7 @@ namespace Sodao.FastSocket.Server
         /// <param name="connection"></param>
         private void listener_Accepted(ISocketListener listener, SocketBase.IConnection connection)
         {
-            if (base._listConnections.Count() > this._maxConnections)
-            {
-                connection.BeginDisconnect(); return;
-            }
+            if (base.CountConnection() > this._maxConnections) { connection.BeginDisconnect(); return; }
             base.RegisterConnection(connection);
         }
         #endregion
@@ -133,13 +130,14 @@ namespace Sodao.FastSocket.Server
         /// send callback
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="e"></param>
-        protected override void OnSendCallback(SocketBase.IConnection connection, SocketBase.SendCallbackEventArgs e)
+        /// <param name="packet"></param>
+        /// <param name="status"></param>
+        protected override void OnSendCallback(SocketBase.IConnection connection, SocketBase.Packet packet, SocketBase.SendStatus status)
         {
-            base.OnSendCallback(connection, e);
+            base.OnSendCallback(connection, packet, status);
             this._scheduler.Post(_ =>
             {
-                try { this._socketService.OnSendCallback(connection, e); }
+                try { this._socketService.OnSendCallback(connection, packet, status); }
                 catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
             });
         }
@@ -160,7 +158,7 @@ namespace Sodao.FastSocket.Server
             }
             catch (Exception ex)
             {
-                this.OnError(connection, ex);
+                this.OnConnectionError(connection, ex);
                 connection.BeginDisconnect(ex);
                 e.SetReadlength(e.Buffer.Count);
                 return;
@@ -189,13 +187,13 @@ namespace Sodao.FastSocket.Server
             });
         }
         /// <summary>
-        /// onError
+        /// on connection error
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="ex"></param>
-        protected override void OnError(SocketBase.IConnection connection, Exception ex)
+        protected override void OnConnectionError(SocketBase.IConnection connection, Exception ex)
         {
-            base.OnError(connection, ex);
+            base.OnConnectionError(connection, ex);
             this._scheduler.Post(_ =>
             {
                 try { this._socketService.OnException(connection, ex); }

@@ -1,10 +1,11 @@
-﻿
+﻿using System.Net.Sockets;
+
 namespace Sodao.FastSocket.SocketBase
 {
     /// <summary>
     /// socket connection host interface
     /// </summary>
-    public interface IHost : ISAEAPool
+    public interface IHost
     {
         /// <summary>
         /// get socket buffer size
@@ -20,6 +21,12 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         /// <returns></returns>
         long NextConnectionID();
+        /// <summary>
+        /// create new <see cref="IConnection"/>
+        /// </summary>
+        /// <param name="socket"></param>
+        /// <returns></returns>
+        IConnection NewConnection(Socket socket);
         /// <summary>
         /// get <see cref="IConnection"/> by connectionID
         /// </summary>

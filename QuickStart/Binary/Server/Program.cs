@@ -57,12 +57,13 @@ namespace Server
         /// 当服务端发送Packet完毕会调用此方法
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="e"></param>
-        public override void OnSendCallback(IConnection connection, SendCallbackEventArgs e)
+        /// <param name="packet"></param>
+        /// <param name="status"></param>
+        public override void OnSendCallback(IConnection connection, Packet packet, SendStatus status)
         {
-            base.OnSendCallback(connection, e);
+            base.OnSendCallback(connection, packet, status);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("send " + e.Status.ToString());
+            Console.WriteLine("send " + status.ToString());
             Console.ForegroundColor = ConsoleColor.Gray;
         }
         /// <summary>

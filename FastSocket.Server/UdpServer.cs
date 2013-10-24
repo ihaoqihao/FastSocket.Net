@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using Sodao.FastSocket.SocketBase;
 
 namespace Sodao.FastSocket.Server
 {
@@ -169,7 +168,7 @@ namespace Sodao.FastSocket.Server
         /// <summary>
         /// 用于异步发送的<see cref="SocketAsyncEventArgs"/>对象池
         /// </summary>
-        private class AsyncSendPool : ISAEAPool
+        private class AsyncSendPool
         {
             #region Private Members
             private const int MAXPOOLSIZE = 3000;
@@ -192,7 +191,19 @@ namespace Sodao.FastSocket.Server
             }
             #endregion
 
-            #region ISAEAPool Members
+            #region Private Methods
+            /// <summary>
+            /// send completed handle
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
+            private void SendCompleted(object sender, SocketAsyncEventArgs e)
+            {
+                this.ReleaseSocketAsyncEventArgs(e);
+            }
+            #endregion
+
+            #region Public Methods
             /// <summary>
             /// get
             /// </summary>
@@ -222,21 +233,6 @@ namespace Sodao.FastSocket.Server
 
                 this._stack.Push(e);
             }
-            #endregion
-
-            #region Private Methods
-            /// <summary>
-            /// send completed handle
-            /// </summary>
-            /// <param name="sender"></param>
-            /// <param name="e"></param>
-            private void SendCompleted(object sender, SocketAsyncEventArgs e)
-            {
-                this.ReleaseSocketAsyncEventArgs(e);
-            }
-            #endregion
-
-            #region Public Methods
             /// <summary>
             /// sned async
             /// </summary>

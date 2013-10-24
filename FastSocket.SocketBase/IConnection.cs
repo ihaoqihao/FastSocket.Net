@@ -9,25 +9,9 @@ namespace Sodao.FastSocket.SocketBase
     public interface IConnection
     {
         /// <summary>
-        /// packet start sending event
-        /// </summary>
-        event StartSendingHandler StartSending;
-        /// <summary>
-        /// packet send callback event
-        /// </summary>
-        event SendCallbackHandler SendCallback;
-        /// <summary>
-        /// message received event
-        /// </summary>
-        event MessageReceivedHandler MessageReceived;
-        /// <summary>
         /// disconnected event
         /// </summary>
         event DisconnectedHandler Disconnected;
-        /// <summary>
-        /// connection error event
-        /// </summary>
-        event ErrorHandler Error;
 
         /// <summary>
         /// return the connection is active.

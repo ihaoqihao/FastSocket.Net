@@ -56,8 +56,9 @@ namespace Sodao.FastSocket.Server
         /// send callback
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="e"></param>
-        public virtual void OnSendCallback(SocketBase.IConnection connection, SocketBase.SendCallbackEventArgs e)
+        /// <param name="packet"></param>
+        /// <param name="status"></param>
+        public virtual void OnSendCallback(SocketBase.IConnection connection, SocketBase.Packet packet, SocketBase.SendStatus status)
         {
         }
         /// <summary>

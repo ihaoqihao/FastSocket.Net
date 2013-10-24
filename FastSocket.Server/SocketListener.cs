@@ -121,7 +121,7 @@ namespace Sodao.FastSocket.Server
                 acceptedSocket.ReceiveBufferSize = this._host.SocketBufferSize;
                 acceptedSocket.SendBufferSize = this._host.SocketBufferSize;
                 acceptedSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-                this.Accepted(this, new SocketBase.DefaultConnection(this._host.NextConnectionID(), acceptedSocket, this._host));
+                this.Accepted(this, this._host.NewConnection(acceptedSocket));
             }
 
             //continue to accept!

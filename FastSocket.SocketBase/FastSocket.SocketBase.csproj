@@ -37,24 +37,21 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ISAEAPool.cs" />
     <Compile Include="ConnectionCollection.cs" />
     <Compile Include="DefaultConnection.cs" />
-    <Compile Include="Events\StartSendingHandler.cs" />
+    <Compile Include="DisconnectedHandler.cs" />
     <Compile Include="Log\ConsoleListener.cs" />
     <Compile Include="Log\DiagnosticListener.cs" />
     <Compile Include="Log\ITraceListener.cs" />
     <Compile Include="Log\Trace.cs" />
     <Compile Include="Log\ListenerWrapper.cs" />
+    <Compile Include="MessageProcessHandler.cs" />
     <Compile Include="Packet.cs" />
-    <Compile Include="Events\DisconnectedHandler.cs" />
-    <Compile Include="Events\ErrorHandler.cs" />
-    <Compile Include="Events\SendCallbackHandler.cs" />
-    <Compile Include="Events\MessageReceivedHandler.cs" />
     <Compile Include="IConnection.cs" />
     <Compile Include="IHost.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="BaseHost.cs" />
+    <Compile Include="SendStatus.cs" />
     <Compile Include="Utils\ConsistentHashContainer.cs" />
     <Compile Include="Utils\Date.cs" />
     <Compile Include="Utils\DisposableBase.cs" />

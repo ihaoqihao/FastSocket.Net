@@ -72,8 +72,7 @@ namespace Sodao.FastSocket.Client
             lock (this)
             {
                 if (this._dicNodes.ContainsKey(name)) return false;
-                this._dicNodes[name] = node = new SocketConnector(name, endPoint, this._host,
-                    this.OnConnected, this.OnDisconnected);
+                this._dicNodes[name] = node = new SocketConnector(name, endPoint, this._host, this.OnConnected, this.OnDisconnected);
             }
             node.Start();
             return true;

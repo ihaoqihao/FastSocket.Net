@@ -12,11 +12,9 @@ namespace Sodao.FastSocket.SocketBase
     {
         #region Members
         private long _connectionID = 1000L;
-        /// <summary>
-        /// connection collection
-        /// </summary>
-        protected readonly ConnectionCollection _listConnections = new ConnectionCollection();
+        private readonly ConnectionCollection _listConnections = new ConnectionCollection();
         private readonly ConcurrentStack<SocketAsyncEventArgs> _stack = new ConcurrentStack<SocketAsyncEventArgs>();
+        private readonly Adapter _adapter = null;
         #endregion
 
         #region Constructors
@@ -34,6 +32,14 @@ namespace Sodao.FastSocket.SocketBase
 
             this.SocketBufferSize = socketBufferSize;
             this.MessageBufferSize = messageBufferSize;
+
+            this._adapter = new Adapter(this.GetSocketAsyncEventArgs,
+                this.ReleaseSocketAsyncEventArgs,
+                this.OnStartSending,
+                this.OnSendCallback,
+                this.OnMessageReceived,
+                this.OnDisconnected,
+                this.OnConnectionError);
         }
         #endregion
 
@@ -54,6 +60,7 @@ namespace Sodao.FastSocket.SocketBase
             get;
             private set;
         }
+
         /// <summary>
         /// 生成下一个连接ID
         /// </summary>
@@ -61,6 +68,17 @@ namespace Sodao.FastSocket.SocketBase
         public long NextConnectionID()
         {
             return Interlocked.Increment(ref this._connectionID);
+        }
+        /// <summary>
+        /// create new <see cref="IConnection"/>
+        /// </summary>
+        /// <param name="socket"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">socket is null</exception>
+        public virtual IConnection NewConnection(Socket socket)
+        {
+            if (socket == null) throw new ArgumentNullException("socket");
+            return new DefaultConnection(this.NextConnectionID(), socket, this, this._adapter);
         }
         /// <summary>
         /// get <see cref="IConnection"/> by connectionID
@@ -96,17 +114,45 @@ namespace Sodao.FastSocket.SocketBase
         protected void RegisterConnection(IConnection connection)
         {
             if (connection == null) throw new ArgumentNullException("connection");
-            if (!connection.Active) return;
-
-            connection.StartSending += new StartSendingHandler(this.OnStartSending);
-            connection.SendCallback += new SendCallbackHandler(this.OnSendCallback);
-            connection.MessageReceived += new MessageReceivedHandler(this.OnMessageReceived);
-            connection.Disconnected += new DisconnectedHandler(this.OnDisconnected);
-            connection.Error += new ErrorHandler(this.OnError);
-
-            this._listConnections.Add(connection);
-            this.OnConnected(connection);
+            if (connection.Active)
+            {
+                this._listConnections.Add(connection);
+                this.OnConnected(connection);
+            }
         }
+        /// <summary>
+        /// get connection count.
+        /// </summary>
+        /// <returns></returns>
+        protected int CountConnection()
+        {
+            return this._listConnections.Count();
+        }
+
+        /// <summary>
+        /// get
+        /// </summary>
+        /// <returns></returns>
+        protected SocketAsyncEventArgs GetSocketAsyncEventArgs()
+        {
+            SocketAsyncEventArgs e;
+            if (this._stack.TryPop(out e)) return e;
+
+            e = new SocketAsyncEventArgs();
+            e.SetBuffer(new byte[this.MessageBufferSize], 0, this.MessageBufferSize);
+            return e;
+        }
+        /// <summary>
+        /// release
+        /// </summary>
+        /// <param name="e"></param>
+        protected void ReleaseSocketAsyncEventArgs(SocketAsyncEventArgs e)
+        {
+            if (e.Buffer == null || e.Buffer.Length != this.MessageBufferSize) { e.Dispose(); return; }
+            if (this._stack.Count >= 50000) { e.Dispose(); return; }
+            this._stack.Push(e);
+        }
+
         /// <summary>
         /// OnConnected
         /// </summary>
@@ -129,8 +175,9 @@ namespace Sodao.FastSocket.SocketBase
         /// OnSendCallback
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="e"></param>
-        protected virtual void OnSendCallback(IConnection connection, SendCallbackEventArgs e)
+        /// <param name="packet"></param>
+        /// <param name="status"></param>
+        protected virtual void OnSendCallback(IConnection connection, Packet packet, SendStatus status)
         {
         }
         /// <summary>
@@ -146,15 +193,10 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="ex"></param>
+        /// <exception cref="ArgumentNullException">connection is null</exception>
         protected virtual void OnDisconnected(IConnection connection, Exception ex)
         {
             this._listConnections.Remove(connection.ConnectionID);
-
-            connection.StartSending -= new StartSendingHandler(this.OnStartSending);
-            connection.SendCallback -= new SendCallbackHandler(this.OnSendCallback);
-            connection.MessageReceived -= new MessageReceivedHandler(this.OnMessageReceived);
-            connection.Disconnected -= new DisconnectedHandler(this.OnDisconnected);
-            connection.Error -= new ErrorHandler(this.OnError);
 
             Log.Trace.Debug(string.Concat("socket disconnected, id:", connection.ConnectionID.ToString(),
                 ", remot endPoint:", connection.RemoteEndPoint == null ? string.Empty : connection.RemoteEndPoint.ToString(),
@@ -166,41 +208,80 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="ex"></param>
-        protected virtual void OnError(IConnection connection, Exception ex)
+        protected virtual void OnConnectionError(IConnection connection, Exception ex)
         {
             Log.Trace.Error(ex.Message, ex);
         }
         #endregion
 
-        #region ISAEAPool Members
         /// <summary>
-        /// get
+        /// adapter
         /// </summary>
-        /// <returns></returns>
-        public SocketAsyncEventArgs GetSocketAsyncEventArgs()
+        internal sealed class Adapter
         {
-            SocketAsyncEventArgs e;
-            if (this._stack.TryPop(out e)) return e;
+            #region Public Members
+            /// <summary>
+            /// get <see cref="SocketAsyncEventArgs"/>
+            /// </summary>
+            public readonly Func<SocketAsyncEventArgs> GetSocketAsyncEventArgs;
+            /// <summary>
+            /// release <see cref="SocketAsyncEventArgs"/>
+            /// </summary>
+            /// <returns></returns>
+            public readonly Action<SocketAsyncEventArgs> ReleaseSocketAsyncEventArgs;
 
-            e = new SocketAsyncEventArgs();
-            e.SetBuffer(new byte[this.MessageBufferSize], 0, this.MessageBufferSize);
-            return e;
-        }
-        /// <summary>
-        /// release
-        /// </summary>
-        /// <param name="e"></param>
-        public void ReleaseSocketAsyncEventArgs(SocketAsyncEventArgs e)
-        {
-            if (e.Buffer == null || e.Buffer.Length != this.MessageBufferSize)
+            /// <summary>
+            /// on packet start sending
+            /// </summary>
+            public readonly Action<IConnection, Packet> OnStartSending;
+            /// <summary>
+            /// packet send callback event
+            /// </summary>
+            public readonly Action<IConnection, Packet, SendStatus> OnSendCallback;
+            /// <summary>
+            /// on message received
+            /// </summary>
+            public readonly Action<IConnection, MessageReceivedEventArgs> OnMessageReceived;
+            /// <summary>
+            /// on connection disconnected
+            /// </summary>
+            public readonly Action<IConnection, Exception> OnDisconnected;
+            /// <summary>
+            /// on connection error event
+            /// </summary>
+            public readonly Action<IConnection, Exception> OnConnectionError;
+            #endregion
+
+            #region Constructors
+            /// <summary>
+            /// new
+            /// </summary>
+            /// <param name="funGetSocketAsyncEventArgs"></param>
+            /// <param name="releaseSocketAsyncEventArgs"></param>
+            /// <param name="onStartSending"></param>
+            /// <param name="onSendCallback"></param>
+            /// <param name="onMessageReceived"></param>
+            /// <param name="onDisconnected"></param>
+            /// <param name="onConnectionError"></param>
+            public Adapter(
+                Func<SocketAsyncEventArgs> funGetSocketAsyncEventArgs,
+                Action<SocketAsyncEventArgs> releaseSocketAsyncEventArgs,
+                Action<IConnection, Packet> onStartSending,
+                Action<IConnection, Packet, SendStatus> onSendCallback,
+                Action<IConnection, MessageReceivedEventArgs> onMessageReceived,
+                Action<IConnection, Exception> onDisconnected,
+                Action<IConnection, Exception> onConnectionError)
             {
-                e.Dispose(); return;
+                this.GetSocketAsyncEventArgs = funGetSocketAsyncEventArgs;
+                this.ReleaseSocketAsyncEventArgs = releaseSocketAsyncEventArgs;
+
+                this.OnStartSending = onStartSending;
+                this.OnSendCallback = onSendCallback;
+                this.OnMessageReceived = onMessageReceived;
+                this.OnDisconnected = onDisconnected;
+                this.OnConnectionError = onConnectionError;
             }
-
-            if (this._stack.Count >= 50000) { e.Dispose(); return; }
-
-            this._stack.Push(e);
+            #endregion
         }
-        #endregion
     }
 }
