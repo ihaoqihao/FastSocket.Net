@@ -45,14 +45,6 @@ namespace Sodao.FastSocket.Server
             connection.BeginReceive();
         }
         /// <summary>
-        /// start sending
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="packet"></param>
-        public void OnStartSending(SocketBase.IConnection connection, SocketBase.Packet packet)
-        {
-        }
-        /// <summary>
         /// send callback
         /// </summary>
         /// <param name="connection"></param>

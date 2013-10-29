@@ -38,14 +38,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConnectionCollection.cs" />
-    <Compile Include="DefaultConnection.cs" />
     <Compile Include="DisconnectedHandler.cs" />
     <Compile Include="Log\ConsoleListener.cs" />
     <Compile Include="Log\DiagnosticListener.cs" />
     <Compile Include="Log\ITraceListener.cs" />
     <Compile Include="Log\Trace.cs" />
     <Compile Include="Log\ListenerWrapper.cs" />
-    <Compile Include="MessageProcessHandler.cs" />
+    <Compile Include="MessageReceivedEventArgs.cs" />
     <Compile Include="Packet.cs" />
     <Compile Include="IConnection.cs" />
     <Compile Include="IHost.cs" />

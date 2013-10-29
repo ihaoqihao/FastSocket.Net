@@ -113,20 +113,6 @@ namespace Sodao.FastSocket.Server
             });
         }
         /// <summary>
-        /// start sending
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="packet"></param>
-        protected override void OnStartSending(SocketBase.IConnection connection, SocketBase.Packet packet)
-        {
-            base.OnStartSending(connection, packet);
-            this._scheduler.Post(_ =>
-            {
-                try { this._socketService.OnStartSending(connection, packet); }
-                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-            });
-        }
-        /// <summary>
         /// send callback
         /// </summary>
         /// <param name="connection"></param>

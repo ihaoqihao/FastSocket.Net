@@ -14,12 +14,6 @@ namespace Sodao.FastSocket.Server
         /// <param name="connection"></param>
         void OnConnected(SocketBase.IConnection connection);
         /// <summary>
-        /// 开始发送<see cref="SocketBase.Packet"/>
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="packet"></param>
-        void OnStartSending(SocketBase.IConnection connection, SocketBase.Packet packet);
-        /// <summary>
         /// 发送回调
         /// </summary>
         /// <param name="connection"></param>
