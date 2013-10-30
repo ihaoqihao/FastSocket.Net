@@ -223,7 +223,7 @@ namespace Sodao.FastSocket.SocketBase
 
             private SocketAsyncEventArgs _saeSend = null;
             private Packet _currSendingPacket = null;
-            private readonly PacketQueue _sendQueue = null;
+            private readonly PacketQueue _packetQueue = null;
 
             private SocketAsyncEventArgs _saeReceive = null;
             private MemoryStream _tsStream = null;
@@ -259,7 +259,7 @@ namespace Sodao.FastSocket.SocketBase
                 //init for send...
                 this._saeSend = host.GetSocketAsyncEventArgs();
                 this._saeSend.Completed += new EventHandler<SocketAsyncEventArgs>(this.SendAsyncCompleted);
-                this._sendQueue = new PacketQueue();
+                this._packetQueue = new PacketQueue(this.SendPacketInternal);
 
                 //init for receive...
                 this._saeReceive = host.GetSocketAsyncEventArgs();
@@ -319,14 +319,16 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="packet"></param>
             public void BeginSend(Packet packet)
             {
-                this.SendPacketInternal(packet);
+                if (this._packetQueue.TrySend(packet)) return;
+                this.OnSendCallback(packet, SendStatus.Failed);
             }
             /// <summary>
             /// 异步接收数据
             /// </summary>
             public void BeginReceive()
             {
-                if (Interlocked.CompareExchange(ref this._isReceiving, 1, 0) == 0) this.ReceiveInternal(this._saeReceive);
+                if (Interlocked.CompareExchange(ref this._isReceiving, 1, 0) == 0)
+                    this.ReceiveInternal(this._saeReceive);
             }
             /// <summary>
             /// 异步断开连接
@@ -334,17 +336,20 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="ex"></param>
             public void BeginDisconnect(Exception ex = null)
             {
-                if (Interlocked.CompareExchange(ref this._active, 0, 1) == 1) this.DisconnectInternal(ex);
+                if (Interlocked.CompareExchange(ref this._active, 0, 1) == 1)
+                    this.DisconnectInternal(ex);
             }
             #endregion
 
-            #region Protected Methods
+            #region Private Methods
+
+            #region Free
             /// <summary>
             /// dispose
             /// </summary>
-            protected virtual void Free()
+            private void Free()
             {
-                var arrPacket = this._sendQueue.Close();
+                var arrPacket = this._packetQueue.Close();
                 if (arrPacket != null && arrPacket.Length > 0)
                 {
                     foreach (var packet in arrPacket) this.OnSendCallback(packet, SendStatus.Failed);
@@ -365,8 +370,6 @@ namespace Sodao.FastSocket.SocketBase
                 this._socket = null;
             }
             #endregion
-
-            #region Private Methods
 
             #region Fire Events
             /// <summary>
@@ -424,14 +427,8 @@ namespace Sodao.FastSocket.SocketBase
                 var e = this._saeSend;
                 if (e == null) { this.OnSendCallback(packet, SendStatus.Failed); return; }
 
-                switch (this._sendQueue.TrySend(packet))
-                {
-                    case SendQueueResult.Closed: this.OnSendCallback(packet, SendStatus.Failed); break;
-                    case SendQueueResult.SendCurr:
-                        this.OnStartSending(packet);
-                        this.SendPacketInternal(packet, e);
-                        break;
-                }
+                this.OnStartSending(packet);
+                this.SendPacketInternal(packet, e);
             }
             /// <summary>
             /// internal send packet.
@@ -472,7 +469,7 @@ namespace Sodao.FastSocket.SocketBase
                 var packet = this._currSendingPacket;
                 if (packet == null)
                 {
-                    var ex = new Exception(string.Concat("未知的错误, connection state:", this.Active.ToString(),
+                    var ex = new Exception(string.Concat("unknow error, connection state:", this.Active.ToString(),
                         " conectionID:", this.ConnectionID.ToString(),
                         " remote address:", this.RemoteEndPoint.ToString()));
                     this.OnError(ex);
@@ -515,13 +512,8 @@ namespace Sodao.FastSocket.SocketBase
                         this._currSendingPacket = null;
                         this.OnSendCallback(packet, SendStatus.Success);
 
-                        //send next packet
-                        var nextPacket = this._sendQueue.TrySendNext();
-                        if (nextPacket != null)
-                        {
-                            this.OnStartSending(nextPacket);
-                            this.SendPacketInternal(nextPacket, e);
-                        }
+                        //try send next packet
+                        this._packetQueue.TrySendNext();
                     }
                     else this.SendPacketInternal(packet, e);//continue send this packet
                 }
@@ -643,105 +635,222 @@ namespace Sodao.FastSocket.SocketBase
 
             #region PacketQueue
             /// <summary>
-            /// packet send queue
+            /// packet queue
             /// </summary>
             private class PacketQueue
             {
                 #region Private Members
-                private bool _isSending = false;
-                private bool _isClosed = false;
-                private readonly Queue<Packet> _queue = new Queue<Packet>();
+                private const int IDLE = 1;     //空闲状态
+                private const int SENDING = 2;  //发送中
+                private const int ENQUEUE = 3;  //入列状态
+                private const int DEQUEUE = 4;  //出列状态
+                private const int CLOSED = 5;   //已关闭
+
+                private int _state = IDLE;      //当前状态
+                private Queue<Packet> _queue = new Queue<Packet>();
+                private Action<Packet> _sendAction = null;
+                #endregion
+
+                #region Constructors
+                /// <summary>
+                /// new
+                /// </summary>
+                /// <param name="sendAction"></param>
+                /// <exception cref="ArgumentNullException">sendAction is null.</exception>
+                public PacketQueue(Action<Packet> sendAction)
+                {
+                    if (sendAction == null) throw new ArgumentNullException("sendAction");
+                    this._sendAction = sendAction;
+                }
                 #endregion
 
                 #region Public Methods
                 /// <summary>
-                /// try send
+                /// try send packet
                 /// </summary>
                 /// <param name="packet"></param>
                 /// <returns></returns>
-                public SendQueueResult TrySend(Packet packet)
+                public bool TrySend(Packet packet)
                 {
-                    lock (this)
+                    bool spin = true;
+                    while (spin)
                     {
-                        if (this._isClosed) return SendQueueResult.Closed;
-
-                        if (this._isSending)
+                        switch (this._state)
                         {
-                            if (this._queue.Count < 500)
-                            {
-                                this._queue.Enqueue(packet);
-                                return SendQueueResult.Enqueued;
-                            }
-                        }
-                        else
-                        {
-                            this._isSending = true;
-                            return SendQueueResult.SendCurr;
+                            case IDLE:
+                                if (Interlocked.CompareExchange(ref this._state, SENDING, IDLE) == IDLE)
+                                {
+                                    spin = false;
+                                }
+                                break;
+                            case SENDING:
+                                if (Interlocked.CompareExchange(ref this._state, ENQUEUE, SENDING) == SENDING)
+                                {
+                                    this._queue.Enqueue(packet);
+                                    this._state = SENDING;
+                                    return true;
+                                }
+                                break;
+                            case ENQUEUE:
+                            case DEQUEUE:
+                                Thread.Yield();
+                                break;
+                            case CLOSED:
+                                return false;
                         }
                     }
 
-                    Thread.Sleep(1);
-                    return this.TrySend(packet);
+                    this._sendAction(packet);
+                    return true;
                 }
                 /// <summary>
-                /// try sned next packet
-                /// </summary>
-                /// <returns></returns>
-                public Packet TrySendNext()
-                {
-                    lock (this)
-                    {
-                        if (this._queue.Count == 0)
-                        {
-                            this._isSending = false;
-                            return null;
-                        }
-
-                        this._isSending = true;
-                        return this._queue.Dequeue();
-                    }
-                }
-                /// <summary>
-                /// close
+                /// close and clear
                 /// </summary>
                 /// <returns></returns>
                 public Packet[] Close()
                 {
-                    lock (this)
+                    bool spin = true;
+                    while (spin)
                     {
-                        if (this._isClosed) return null;
-                        this._isClosed = true;
-
-                        var packets = this._queue.ToArray();
-                        this._queue.Clear();
-                        return packets;
+                        switch (this._state)
+                        {
+                            case IDLE:
+                                if (Interlocked.CompareExchange(ref this._state, CLOSED, IDLE) == IDLE)
+                                {
+                                    spin = false;
+                                }
+                                break;
+                            case SENDING:
+                                if (Interlocked.CompareExchange(ref this._state, CLOSED, SENDING) == SENDING)
+                                {
+                                    spin = false;
+                                }
+                                break;
+                            case CLOSED:
+                                return null;
+                            case DEQUEUE:
+                            case ENQUEUE:
+                                Thread.Yield();
+                                break;
+                        }
                     }
+
+                    var arrPackets = this._queue.ToArray();
+                    this._queue.Clear();
+                    this._queue = null;
+                    this._sendAction = null;
+
+                    return arrPackets;
+                }
+                /// <summary>
+                /// try send next packet
+                /// </summary>
+                public void TrySendNext()
+                {
+                    bool spin = true;
+                    Packet sendPacket = null;
+                    while (spin)
+                    {
+                        switch (this._state)
+                        {
+                            case SENDING:
+                                if (Interlocked.CompareExchange(ref this._state, DEQUEUE, SENDING) == SENDING)
+                                {
+                                    if (this._queue.Count == 0)
+                                    {
+                                        this._state = IDLE;
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        sendPacket = this._queue.Dequeue();
+                                        this._state = SENDING;
+                                        spin = false;
+                                    }
+                                }
+                                break;
+                            case ENQUEUE:
+                                Thread.Yield();
+                                break;
+                            case CLOSED:
+                                return;
+                        }
+                    }
+
+                    this._sendAction(sendPacket);
                 }
                 #endregion
-            }
-            #endregion
-
-            #region SendQueueResult
-            /// <summary>
-            /// send result
-            /// </summary>
-            private enum SendQueueResult : byte
-            {
-                /// <summary>
-                /// closed
-                /// </summary>
-                Closed = 1,
-                /// <summary>
-                /// send current
-                /// </summary>
-                SendCurr = 2,
-                /// <summary>
-                /// 已入列
-                /// </summary>
-                Enqueued = 3
             }
             #endregion
         }
         #endregion
     }
+
+    #region SendStatus
+    /// <summary>
+    /// packet send status
+    /// </summary>
+    public enum SendStatus : byte
+    {
+        /// <summary>
+        /// 发送成功
+        /// </summary>
+        Success = 1,
+        /// <summary>
+        /// 发送失败
+        /// </summary>
+        Failed = 2
+    }
+    #endregion
+
+    #region MessageProcessHandler
+    /// <summary>
+    /// 消息处理handler
+    /// </summary>
+    /// <param name="buffer"></param>
+    /// <param name="readlength"></param>
+    public delegate void MessageProcessHandler(ArraySegment<byte> buffer, int readlength);
+    #endregion
+
+    #region MessageReceivedEventArgs
+    /// <summary>
+    /// message received eventArgs
+    /// </summary>
+    public sealed class MessageReceivedEventArgs
+    {
+        #region Members
+        private readonly MessageProcessHandler _processCallback = null;
+        /// <summary>
+        /// Buffer
+        /// </summary>
+        public readonly ArraySegment<byte> Buffer;
+        #endregion
+
+        #region Constructors
+        /// <summary>
+        /// new
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="processCallback"></param>
+        /// <exception cref="ArgumentNullException">processCallback is null</exception>
+        public MessageReceivedEventArgs(ArraySegment<byte> buffer, MessageProcessHandler processCallback)
+        {
+            if (processCallback == null) throw new ArgumentNullException("processCallback");
+            this.Buffer = buffer;
+            this._processCallback = processCallback;
+        }
+        #endregion
+
+        #region Public Methods
+        /// <summary>
+        /// 设置已读取长度
+        /// </summary>
+        /// <param name="readlength"></param>
+        public void SetReadlength(int readlength)
+        {
+            this._processCallback(this.Buffer, readlength);
+        }
+        #endregion
+    }
+    #endregion
 }
