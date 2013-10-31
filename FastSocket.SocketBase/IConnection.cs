@@ -18,6 +18,10 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         bool Active { get; }
         /// <summary>
+        /// get the connection latest active time.
+        /// </summary>
+        DateTime LatestActiveTime { get; }
+        /// <summary>
         /// get the connection id.
         /// </summary>
         long ConnectionID { get; }

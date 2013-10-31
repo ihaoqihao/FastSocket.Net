@@ -216,6 +216,7 @@ namespace Sodao.FastSocket.SocketBase
         {
             #region Private Members
             private int _active = 1;
+            private DateTime _latestActiveTime = DateTime.UtcNow;
             private readonly int _messageBufferSize;
             private readonly BaseHost _host = null;
 
@@ -279,6 +280,13 @@ namespace Sodao.FastSocket.SocketBase
             public bool Active
             {
                 get { return Thread.VolatileRead(ref this._active) == 1; }
+            }
+            /// <summary>
+            /// get the connection latest active time.
+            /// </summary>
+            public DateTime LatestActiveTime
+            {
+                get { return this._latestActiveTime; }
             }
             /// <summary>
             /// get the connection id.
@@ -427,6 +435,7 @@ namespace Sodao.FastSocket.SocketBase
                 var e = this._saeSend;
                 if (e == null) { this.OnSendCallback(packet, SendStatus.Failed); return; }
 
+                this._latestActiveTime = DateTime.UtcNow;
                 this.OnStartSending(packet);
                 this.SendPacketInternal(packet, e);
             }
@@ -537,6 +546,7 @@ namespace Sodao.FastSocket.SocketBase
                     this.OnError(ex);
                 }
 
+                this._latestActiveTime = DateTime.UtcNow;
                 if (!completedAsync) this.ReceiveAsyncCompleted(this, e);
             }
             /// <summary>
