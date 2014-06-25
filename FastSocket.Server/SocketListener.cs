@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Sodao.FastSocket.Server
 {
@@ -102,7 +103,8 @@ namespace Sodao.FastSocket.Server
             try { asyncCompleted = this._socket.AcceptAsync(this._ae); }
             catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
 
-            if (!asyncCompleted) this.AcceptAsyncCompleted(this, this._ae);
+            if (!asyncCompleted)
+                ThreadPool.QueueUserWorkItem(_ => this.AcceptAsyncCompleted(this, this._ae));
         }
         /// <summary>
         /// async accept socket completed handle.

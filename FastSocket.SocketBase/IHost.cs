@@ -17,11 +17,6 @@ namespace Sodao.FastSocket.SocketBase
         int MessageBufferSize { get; }
 
         /// <summary>
-        /// 生成下一个连接ID
-        /// </summary>
-        /// <returns></returns>
-        long NextConnectionID();
-        /// <summary>
         /// create new <see cref="IConnection"/>
         /// </summary>
         /// <param name="socket"></param>
@@ -33,6 +28,11 @@ namespace Sodao.FastSocket.SocketBase
         /// <param name="connectionID"></param>
         /// <returns></returns>
         IConnection GetConnectionByID(long connectionID);
+        /// <summary>
+        /// list all <see cref="IConnection"/>
+        /// </summary>
+        /// <returns></returns>
+        IConnection[] ListAllConnection();
 
         /// <summary>
         /// 启动

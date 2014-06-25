@@ -1,5 +1,5 @@
-﻿using System;
-using Sodao.FastSocket.SocketBase;
+﻿using Sodao.FastSocket.SocketBase;
+using System;
 
 namespace Sodao.FastSocket.Server.Protocol
 {
@@ -21,10 +21,13 @@ namespace Sodao.FastSocket.Server.Protocol
         public Command.ThriftCommandInfo FindCommandInfo(IConnection connection, ArraySegment<byte> buffer,
             int maxMessageSize, out int readlength)
         {
-            if (buffer.Count < 4) { readlength = 0; return null; }
+            if (buffer.Count < 4)
+            {
+                readlength = 0;
+                return null;
+            }
 
             var payload = buffer.Array;
-
             //获取message length
             var messageLength = SocketBase.Utils.NetworkBitConverter.ToInt32(payload, buffer.Offset);
             if (messageLength < 14) throw new BadProtocolException("bad thrift protocol");
@@ -33,7 +36,8 @@ namespace Sodao.FastSocket.Server.Protocol
             readlength = messageLength + 4;
             if (buffer.Count < readlength)
             {
-                readlength = 0; return null;
+                readlength = 0;
+                return null;
             }
 
             var data = new byte[messageLength];

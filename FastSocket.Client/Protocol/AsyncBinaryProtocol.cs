@@ -21,14 +21,22 @@ namespace Sodao.FastSocket.Client.Protocol
         /// <exception cref="BadProtocolException">bad async binary protocl</exception>
         public Response.AsyncBinaryResponse FindResponse(SocketBase.IConnection connection, ArraySegment<byte> buffer, out int readlength)
         {
-            if (buffer.Count < 4) { readlength = 0; return null; }
+            if (buffer.Count < 4)
+            {
+                readlength = 0;
+                return null;
+            }
 
             //获取message length
             var messageLength = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset);
             if (messageLength < 7) throw new BadProtocolException("bad async binary protocl");
 
             readlength = messageLength + 4;
-            if (buffer.Count < readlength) { readlength = 0; return null; }
+            if (buffer.Count < readlength)
+            {
+                readlength = 0;
+                return null;
+            }
 
             var seqID = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset + 4);
             var flagLength = SocketBase.Utils.NetworkBitConverter.ToInt16(buffer.Array, buffer.Offset + 8);

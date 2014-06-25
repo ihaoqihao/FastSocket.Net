@@ -58,12 +58,12 @@ namespace Server
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="packet"></param>
-        /// <param name="status"></param>
-        public override void OnSendCallback(IConnection connection, Packet packet, SendStatus status)
+        /// <param name="isSuccess"></param>
+        public override void OnSendCallback(IConnection connection, Packet packet, bool isSuccess)
         {
-            base.OnSendCallback(connection, packet, status);
+            base.OnSendCallback(connection, packet, isSuccess);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("send " + status.ToString());
+            Console.WriteLine("send " + isSuccess.ToString());
             Console.ForegroundColor = ConsoleColor.Gray;
         }
         /// <summary>

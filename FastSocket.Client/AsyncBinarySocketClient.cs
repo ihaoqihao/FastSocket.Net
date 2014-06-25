@@ -99,14 +99,12 @@ namespace Sodao.FastSocket.Client
                 Buffer.BlockCopy(payload, 0, sendBuffer, 10 + cmdLength, payload.Length);
 
             var source = new TaskCompletionSource<TResult>(asyncState);
-            base.Send(new Request<Response.AsyncBinaryResponse>(consistentKey, seqID, cmdName, sendBuffer,
-                ex => source.TrySetException(ex),
-                response =>
+            base.Send(new Request<Response.AsyncBinaryResponse>(consistentKey, seqID, cmdName, sendBuffer, base.MillisecondsReceiveTimeout,
+                ex => source.TrySetException(ex), response =>
                 {
                     TResult result;
                     try { result = funcResultFactory(response); }
                     catch (Exception ex) { source.TrySetException(ex); return; }
-
                     source.TrySetResult(result);
                 }));
             return source.Task;

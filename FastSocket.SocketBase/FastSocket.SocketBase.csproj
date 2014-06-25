@@ -44,6 +44,7 @@
     <Compile Include="Log\ITraceListener.cs" />
     <Compile Include="Log\Trace.cs" />
     <Compile Include="Log\ListenerWrapper.cs" />
+    <Compile Include="MessageReceivedEventArgs.cs" />
     <Compile Include="Packet.cs" />
     <Compile Include="IConnection.cs" />
     <Compile Include="IHost.cs" />
@@ -51,7 +52,6 @@
     <Compile Include="BaseHost.cs" />
     <Compile Include="Utils\ConsistentHashContainer.cs" />
     <Compile Include="Utils\Date.cs" />
-    <Compile Include="Utils\DisposableBase.cs" />
     <Compile Include="Utils\IPUtility.cs" />
     <Compile Include="Utils\NetworkBitConverter.cs" />
     <Compile Include="Utils\ReflectionHelper.cs" />

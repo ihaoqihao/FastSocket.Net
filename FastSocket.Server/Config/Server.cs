@@ -61,14 +61,6 @@ namespace Sodao.FastSocket.Server.Config
         }
 
         /// <summary>
-        /// schedulerType
-        /// </summary>
-        [ConfigurationProperty("schedulerType", IsRequired = false, DefaultValue = "default")]
-        public string SchedulerType
-        {
-            get { return (string)this["schedulerType"]; }
-        }
-        /// <summary>
         /// ServiceType
         /// </summary>
         [ConfigurationProperty("serviceType", IsRequired = true)]

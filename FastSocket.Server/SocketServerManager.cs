@@ -50,39 +50,30 @@ namespace Sodao.FastSocket.Server
                 var tService = Type.GetType(serverConfig.ServiceType, false);
                 if (tService == null) throw new InvalidOperationException("serviceType");
 
-                var serviceFace = tService.GetInterface(typeof(ISocketService<>).Name);
-                if (serviceFace == null) throw new InvalidOperationException("serviceType");
+                var tAbsService = tService;
+                while (true)
+                {
+                    tAbsService = tAbsService.BaseType;
+                    if (tAbsService.Name == typeof(AbsSocketService<>).Name) break;
+                }
 
                 var objService = Activator.CreateInstance(tService);
                 if (objService == null) throw new InvalidOperationException("serviceType");
 
-                var objScheduler = GetScheduler(serverConfig.SchedulerType);
-
                 //init host.
                 var host = Activator.CreateInstance(typeof(SocketServer<>).MakeGenericType(
-                    serviceFace.GetGenericArguments()),
-                    objScheduler,
+                    tAbsService.GetGenericArguments()),
                     objService,
                     objProtocol,
                     serverConfig.SocketBufferSize,
                     serverConfig.MessageBufferSize,
                     serverConfig.MaxMessageSize,
-                    serverConfig.MaxConnections) as BaseSocketServer;
+                    serverConfig.MaxConnections) as AbsSocketServer;
 
                 host.AddListener(serverConfig.Name, new IPEndPoint(IPAddress.Any, serverConfig.Port));
 
                 _listHosts.Add(host);
             }
-        }
-        /// <summary>
-        /// get scheduler
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        static public IScheduler GetScheduler(string type)
-        {
-            if (type == "default") return new ThreadPoolScheduler();
-            return Activator.CreateInstance(Type.GetType(type, false)) as IScheduler;
         }
         /// <summary>
         /// get protocol.

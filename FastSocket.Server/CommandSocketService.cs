@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Sodao.FastSocket.Server
 {
@@ -7,7 +8,7 @@ namespace Sodao.FastSocket.Server
     /// socket service for command.
     /// </summary>
     /// <typeparam name="TCommandInfo"></typeparam>
-    public abstract class CommandSocketService<TCommandInfo> : ISocketService<TCommandInfo>
+    public class CommandSocketService<TCommandInfo> : AbsSocketService<TCommandInfo>
         where TCommandInfo : class, Command.ICommandInfo
     {
         #region Private Members
@@ -34,53 +35,39 @@ namespace Sodao.FastSocket.Server
         }
         #endregion
 
-        #region ISocketService Methods
+        #region Override Methods
         /// <summary>
         /// 当建立socket连接时，会调用此方法
         /// </summary>
         /// <param name="connection"></param>
-        public virtual void OnConnected(SocketBase.IConnection connection)
+        public override void OnConnected(SocketBase.IConnection connection)
         {
             //开始异步接收数据.
             connection.BeginReceive();
-        }
-        /// <summary>
-        /// send callback
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="packet"></param>
-        /// <param name="status"></param>
-        public virtual void OnSendCallback(SocketBase.IConnection connection, SocketBase.Packet packet, SocketBase.SendStatus status)
-        {
         }
         /// <summary>
         /// 当接收到客户端新消息时，会调用此方法.
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="cmdInfo"></param>
-        public virtual void OnReceived(SocketBase.IConnection connection, TCommandInfo cmdInfo)
+        public override void OnReceived(SocketBase.IConnection connection, TCommandInfo cmdInfo)
         {
-            if (connection == null || cmdInfo == null || string.IsNullOrEmpty(cmdInfo.CmdName)) return;
+            if (string.IsNullOrEmpty(cmdInfo.CmdName)) return;
 
-            Command.ICommand<TCommandInfo> cmd = null;
-            if (this._dicCommand.TryGetValue(cmdInfo.CmdName, out cmd)) cmd.ExecuteCommand(connection, cmdInfo);
-            else this.HandleUnKnowCommand(connection, cmdInfo);
-        }
-        /// <summary>
-        /// OnDisconnected
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="ex"></param>
-        public virtual void OnDisconnected(SocketBase.IConnection connection, Exception ex)
-        {
-        }
-        /// <summary>
-        /// OnException
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="ex"></param>
-        public virtual void OnException(SocketBase.IConnection connection, Exception ex)
-        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                Command.ICommand<TCommandInfo> cmd = null;
+                this._dicCommand.TryGetValue(cmdInfo.CmdName, out cmd);
+                try
+                {
+                    if (cmd == null) this.HandleUnKnowCommand(connection, cmdInfo);
+                    else cmd.ExecuteCommand(connection, cmdInfo);
+                }
+                catch (Exception ex)
+                {
+                    this.OnCommandExecException(connection, cmdInfo, ex);
+                }
+            });
         }
         #endregion
 
@@ -91,18 +78,31 @@ namespace Sodao.FastSocket.Server
         /// <param name="cmd"></param>
         /// <exception cref="ArgumentNullException">cmd is null</exception>
         /// <exception cref="ArgumentNullException">cmd.Name is null</exception>
-        protected virtual void AddCommand(Command.ICommand<TCommandInfo> cmd)
+        protected void AddCommand(Command.ICommand<TCommandInfo> cmd)
         {
             if (cmd == null) throw new ArgumentNullException("cmd");
             if (string.IsNullOrEmpty(cmd.Name)) throw new ArgumentNullException("cmd.name");
+
             this._dicCommand[cmd.Name] = cmd;
+        }
+        /// <summary>
+        /// on command exec exception
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="cmdInfo"></param>
+        /// <param name="ex"></param>
+        protected virtual void OnCommandExecException(SocketBase.IConnection connection, TCommandInfo cmdInfo, Exception ex)
+        {
+
         }
         /// <summary>
         /// handle unknow command.
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="commandInfo"></param>
-        protected abstract void HandleUnKnowCommand(SocketBase.IConnection connection, TCommandInfo commandInfo);
+        protected virtual void HandleUnKnowCommand(SocketBase.IConnection connection, TCommandInfo commandInfo)
+        {
+        }
         #endregion
     }
 }

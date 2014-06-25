@@ -20,19 +20,12 @@ namespace Sodao.FastSocket.SocketBase.Utils
             if (dueTime < -1) throw new ArgumentOutOfRangeException("dueTime");
             if (callback == null) throw new ArgumentNullException("callback");
 
-            if (dueTime == 0)
-            {
-                try { callback(); }
-                catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
-                return;
-            }
-
             Timer timer = null;
             timer = new Timer(_ =>
             {
-                timer.Dispose();
                 try { callback(); }
                 catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
+                finally { timer.Dispose(); }
             }, null, dueTime, Timeout.Infinite);
         }
     }

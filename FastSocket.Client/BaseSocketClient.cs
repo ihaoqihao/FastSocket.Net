@@ -1,10 +1,9 @@
-﻿using System;
+﻿using Sodao.FastSocket.SocketBase;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading;
-using Sodao.FastSocket.SocketBase;
 
 namespace Sodao.FastSocket.Client
 {
@@ -22,7 +21,7 @@ namespace Sodao.FastSocket.Client
         private readonly int _millisecondsReceiveTimeout;
 
         private readonly PendingSendQueue _pendingQueue = null;
-        private readonly RequestCollection _requestCollection = null;
+        private readonly ReceivingCollection _receivingCollection = null;
         #endregion
 
         #region Constructors
@@ -56,8 +55,8 @@ namespace Sodao.FastSocket.Client
             this._millisecondsSendTimeout = millisecondsSendTimeout;
             this._millisecondsReceiveTimeout = millisecondsReceiveTimeout;
 
-            this._pendingQueue = new PendingSendQueue(this, millisecondsSendTimeout);
-            this._requestCollection = new RequestCollection(this, millisecondsReceiveTimeout);
+            this._pendingQueue = new PendingSendQueue(this.ScanningPendingRequest);
+            this._receivingCollection = new ReceivingCollection(this.ReceivingTimeout);
         }
         #endregion
 
@@ -78,6 +77,40 @@ namespace Sodao.FastSocket.Client
         }
         #endregion
 
+        #region Private Methods
+        /// <summary>
+        /// scanning pending request.
+        /// </summary>
+        /// <param name="request"></param>
+        private void ScanningPendingRequest(Request<TResponse> request)
+        {
+            if (DateTime.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds < this._millisecondsSendTimeout)
+            {
+                this.Send(request);
+                return;
+            }
+
+            //send time out
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { request.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName)); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
+        }
+        /// <summary>
+        /// receiving time out
+        /// </summary>
+        /// <param name="request"></param>
+        private void ReceivingTimeout(Request<TResponse> request)
+        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { request.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, request.CmdName)); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
+        }
+        #endregion
+
         #region Protected Methods
         /// <summary>
         /// 处理未知的response
@@ -85,46 +118,6 @@ namespace Sodao.FastSocket.Client
         /// <param name="connection"></param>
         /// <param name="response"></param>
         protected virtual void HandleUnknowResponse(IConnection connection, TResponse response)
-        {
-        }
-        /// <summary>
-        /// OnResponse
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="response"></param>
-        protected virtual void OnResponse(IConnection connection, TResponse response)
-        {
-        }
-        /// <summary>
-        /// on request send success
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="request"></param>
-        protected virtual void OnSendSucess(IConnection connection, Request<TResponse> request)
-        {
-        }
-        /// <summary>
-        /// on request send failed
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="request"></param>
-        protected virtual void OnSendFailed(IConnection connection, Request<TResponse> request)
-        {
-            this.Send(request);
-        }
-        /// <summary>
-        /// on request send timeout
-        /// </summary>
-        /// <param name="request"></param>
-        protected virtual void OnSendTimeout(Request<TResponse> request)
-        {
-        }
-        /// <summary>
-        /// on request receive timeout
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="request"></param>
-        protected virtual void OnReceiveTimeout(IConnection connection, Request<TResponse> request)
         {
         }
         /// <summary>
@@ -146,7 +139,7 @@ namespace Sodao.FastSocket.Client
         /// <returns></returns>
         protected Request<TResponse> DequeueFromPendingQueue()
         {
-            return this._pendingQueue.Dequeue();
+            return this._pendingQueue.TryDequeue();
         }
         /// <summary>
         /// dequeue all from pending queue.
@@ -187,47 +180,39 @@ namespace Sodao.FastSocket.Client
         protected override void OnStartSending(IConnection connection, Packet packet)
         {
             base.OnStartSending(connection, packet);
-            var request = packet as Request<TResponse>;
-            if (request != null) this._requestCollection.Add(request);
+            this._receivingCollection.Add(packet as Request<TResponse>);
         }
         /// <summary>
         /// OnSendCallback
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="packet"></param>
-        /// <param name="status"></param>
-        protected override void OnSendCallback(IConnection connection, Packet packet, SendStatus status)
+        /// <param name="isSuccess"></param>
+        protected override void OnSendCallback(IConnection connection, Packet packet, bool isSuccess)
         {
-            base.OnSendCallback(connection, packet, status);
+            base.OnSendCallback(connection, packet, isSuccess);
 
             var request = packet as Request<TResponse>;
             if (request == null) return;
 
-            if (status == SendStatus.Success)
+            if (isSuccess)
             {
-                request.CurrConnection = connection;
                 request.SentTime = DateTime.UtcNow;
-                this.OnSendSucess(connection, request);
                 return;
             }
 
-            request.CurrConnection = null;
             request.SentTime = DateTime.MaxValue;
-            if (this._requestCollection.Remove(request.SeqID) == null) return;
-
-            if (DateTime.UtcNow.Subtract(request.BeginTime).TotalMilliseconds < this._millisecondsSendTimeout)
+            if (this._receivingCollection.TryRemove(request.SeqID) == null) return;
+            if (DateTime.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds < this._millisecondsSendTimeout)
             {
-                this.OnSendFailed(connection, request);
+                this.Send(request);
                 return;
             }
 
-            //time out
-            this.OnSendTimeout(request);
-
+            //send time out
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                var rex = new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName);
-                try { request.SetException(rex); }
+                try { request.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, request.CmdName)); }
                 catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
             });
         }
@@ -242,10 +227,7 @@ namespace Sodao.FastSocket.Client
 
             int readlength;
             TResponse response = null;
-            try
-            {
-                response = this._protocol.FindResponse(connection, e.Buffer, out readlength);
-            }
+            try { response = this._protocol.FindResponse(connection, e.Buffer, out readlength); }
             catch (Exception ex)
             {
                 base.OnConnectionError(connection, ex);
@@ -256,87 +238,62 @@ namespace Sodao.FastSocket.Client
 
             if (response != null)
             {
-                this.OnResponse(connection, response);
-
-                var request = this._requestCollection.Remove(response.SeqID);
-                if (request == null)
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        try { this.HandleUnknowResponse(connection, response); }
-                        catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                    });
-                else
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        try { request.SetResult(response); }
-                        catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                    });
-            }
-            e.SetReadlength(readlength);
-        }
-        /// <summary>
-        /// OnDisconnected
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="ex"></param>
-        protected override void OnDisconnected(IConnection connection, Exception ex)
-        {
-            base.OnDisconnected(connection, ex);
-
-            var arrRemoved = this._requestCollection.Remove(connection);
-            if (arrRemoved.Length == 0) return;
-
-            var ex2 = ex ?? new SocketException((int)SocketError.Disconnecting);
-            for (int i = 0, l = arrRemoved.Length; i < l; i++)
-            {
-                var r = arrRemoved[i]; if (r == null) continue;
-                ThreadPool.QueueUserWorkItem(c =>
+                var request = this._receivingCollection.TryRemove(response.SeqID);
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    try { r.SetException(ex2); }
-                    catch (Exception ex3) { SocketBase.Log.Trace.Error(ex.Message, ex3); }
+                    try
+                    {
+                        if (request == null) this.HandleUnknowResponse(connection, response);
+                        else request.SetResult(response);
+                    }
+                    catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
                 });
             }
+
+            e.SetReadlength(readlength);
         }
         #endregion
 
-        #region Class.PendingSendQueue
+        #region PendingSendQueue
         /// <summary>
         /// pending send queue
         /// </summary>
         private class PendingSendQueue
         {
             #region Private Members
-            private readonly BaseSocketClient<TResponse> _client = null;
-
-            private readonly int _timeout;
             private readonly Timer _timer = null;
             private readonly ConcurrentQueue<Request<TResponse>> _queue = new ConcurrentQueue<Request<TResponse>>();
+            private readonly Action<Request<TResponse>> _onScanning = null;
             #endregion
 
             #region Constructors
             /// <summary>
             /// new
             /// </summary>
-            ~PendingSendQueue()
+            /// <param name="onScanning"></param>
+            public PendingSendQueue(Action<Request<TResponse>> onScanning)
+            {
+                if (onScanning == null) throw new ArgumentNullException("onScanning");
+                this._onScanning = onScanning;
+                this._timer = new Timer(this.TimerCallback, null, 200, 0);
+            }
+            #endregion
+
+            #region Private Methods
+            /// <summary>
+            /// timer callback
+            /// </summary>
+            /// <param name="state"></param>
+            private void TimerCallback(object state)
             {
                 this._timer.Change(Timeout.Infinite, Timeout.Infinite);
-                this._timer.Dispose();
-            }
-            /// <summary>
-            /// new
-            /// </summary>
-            /// <param name="client"></param>
-            /// <param name="millisecondsSendTimeout"></param>
-            public PendingSendQueue(BaseSocketClient<TResponse> client, int millisecondsSendTimeout)
-            {
-                this._client = client;
-                this._timeout = millisecondsSendTimeout;
-                this._timer = new Timer(_ =>
+                int count = this._queue.Count;
+                while (count-- > 0)
                 {
-                    this._timer.Change(Timeout.Infinite, Timeout.Infinite);
-                    this.Loop();
-                    this._timer.Change(1000, 0);
-                }, null, 1000, 0);
+                    Request<TResponse> request;
+                    if (this._queue.TryDequeue(out request)) this._onScanning(request);
+                }
+                this._timer.Change(200, 0);
             }
             #endregion
 
@@ -352,10 +309,10 @@ namespace Sodao.FastSocket.Client
                 this._queue.Enqueue(request);
             }
             /// <summary>
-            /// dequeue
+            /// try dequeue
             /// </summary>
             /// <returns></returns>
-            public Request<TResponse> Dequeue()
+            public Request<TResponse> TryDequeue()
             {
                 Request<TResponse> request;
                 if (this._queue.TryDequeue(out request)) return request;
@@ -372,109 +329,65 @@ namespace Sodao.FastSocket.Client
                 while (count-- > 0)
                 {
                     Request<TResponse> request;
-                    if (this._queue.TryDequeue(out request))
-                    {
-                        if (list == null) list = new List<Request<TResponse>>();
-                        list.Add(request);
-                    }
-                    else break;
+                    if (!this._queue.TryDequeue(out request)) break;
+
+                    if (list == null) list = new List<Request<TResponse>>();
+                    list.Add(request);
                 }
 
-                if (list != null) return list.ToArray();
-                return new Request<TResponse>[0];
-            }
-            #endregion
-
-            #region Private Methods
-            /// <summary>
-            /// loop
-            /// </summary>
-            private void Loop()
-            {
-                var dtNow = DateTime.UtcNow;
-                List<Request<TResponse>> listSend = null;
-                List<Request<TResponse>> listTimeout = null;
-
-                int count = this._queue.Count;
-                while (count-- > 0)
-                {
-                    Request<TResponse> request;
-                    if (this._queue.TryDequeue(out request))
-                    {
-                        if (dtNow.Subtract(request.BeginTime).TotalMilliseconds < this._timeout)
-                        {
-                            if (listSend == null) listSend = new List<Request<TResponse>>();
-                            listSend.Add(request); continue;
-                        }
-
-                        if (listTimeout == null) listTimeout = new List<Request<TResponse>>();
-                        listTimeout.Add(request);
-                    }
-                    else break;
-                }
-
-                if (listSend != null)
-                {
-                    for (int i = 0, l = listSend.Count; i < l; i++) this._client.Send(listSend[i]);
-                }
-
-                if (listTimeout != null)
-                {
-                    for (int i = 0, l = listTimeout.Count; i < l; i++)
-                    {
-                        var r = listTimeout[i];
-                        this._client.OnSendTimeout(r);
-                        ThreadPool.QueueUserWorkItem(_ =>
-                        {
-                            try { r.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, r.CmdName)); }
-                            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                        });
-                    }
-                }
+                if (list == null) return new Request<TResponse>[0];
+                return list.ToArray();
             }
             #endregion
         }
         #endregion
 
-        #region Class.RequestCollection
+        #region ReceivingCollection
         /// <summary>
-        /// request collection
+        /// receiving collection
         /// </summary>
-        private class RequestCollection
+        private class ReceivingCollection
         {
             #region Private Members
-            private readonly BaseSocketClient<TResponse> _client = null;
-
-            private readonly int _timeout;
             private readonly Timer _timer = null;
             private readonly ConcurrentDictionary<int, Request<TResponse>> _dic = new ConcurrentDictionary<int, Request<TResponse>>();
+            private readonly Action<Request<TResponse>> _onTimeout = null;
             #endregion
 
             #region Constructors
             /// <summary>
             /// new
             /// </summary>
-            ~RequestCollection()
+            /// <param name="onTimeout"></param>
+            public ReceivingCollection(Action<Request<TResponse>> onTimeout)
+            {
+                if (onTimeout == null) throw new ArgumentNullException("timeoutAction");
+                this._onTimeout = onTimeout;
+                this._timer = new Timer(this.TimerCallback, null, 500, 0);
+            }
+            #endregion
+
+            #region Private Methods
+            /// <summary>
+            /// timer callback
+            /// </summary>
+            /// <param name="state"></param>
+            private void TimerCallback(object state)
             {
                 this._timer.Change(Timeout.Infinite, Timeout.Infinite);
-                this._timer.Dispose();
-            }
-            /// <summary>
-            /// new
-            /// </summary>
-            /// <param name="client"></param>
-            /// <param name="millisecondsReceiveTimeout"></param>
-            public RequestCollection(BaseSocketClient<TResponse> client, int millisecondsReceiveTimeout)
-            {
-                this._client = client;
-                this._timeout = millisecondsReceiveTimeout;
-
-                this._timer = new Timer(_ =>
+                if (this._dic.Count > 0)
                 {
-                    this._timer.Change(Timeout.Infinite, Timeout.Infinite);
-                    this.Loop();
-                    this._timer.Change(1000, 0);
-                }, null, 1000, 0);
+                    var dtNow = DateTime.UtcNow;
+                    var arr = this._dic.ToArray().Where(c => dtNow.Subtract(c.Value.SentTime).TotalMilliseconds >
+                        c.Value.MillisecondsReceiveTimeout).ToArray();
+
+                    for (int i = 0, l = arr.Length; i < l; i++)
+                    {
+                        Request<TResponse> removed;
+                        if (this._dic.TryRemove(arr[i].Key, out removed)) this._onTimeout(removed);
+                    }
+                }
+                this._timer.Change(500, 0);
             }
             #endregion
 
@@ -492,57 +405,11 @@ namespace Sodao.FastSocket.Client
             /// </summary>
             /// <param name="seqID"></param>
             /// <returns></returns>
-            public Request<TResponse> Remove(int seqID)
+            public Request<TResponse> TryRemove(int seqID)
             {
-                Request<TResponse> removed;
+                Request<TResponse> removed = null;
                 this._dic.TryRemove(seqID, out removed);
                 return removed;
-            }
-            /// <summary>
-            /// clear
-            /// </summary>
-            /// <param name="connection"></param>
-            /// <returns></returns>
-            public Request<TResponse>[] Remove(IConnection connection)
-            {
-                var items = this._dic.Where(c => c.Value.CurrConnection == connection).ToArray();
-                var arrRemoved = new Request<TResponse>[items.Length];
-                for (int i = 0, l = items.Length; i < l; i++)
-                {
-                    Request<TResponse> removed;
-                    if (this._dic.TryRemove(items[i].Key, out removed)) arrRemoved[i] = removed;
-                }
-                return arrRemoved;
-            }
-            #endregion
-
-            #region Private Methods
-            /// <summary>
-            /// loop
-            /// </summary>
-            private void Loop()
-            {
-                if (this._dic.Count == 0) return;
-
-                var dtNow = DateTime.UtcNow;
-                var arrTimeout = this._dic.Where(c => dtNow.Subtract(c.Value.SentTime).TotalMilliseconds >
-                    (c.Value.MillisecondsReceiveTimeout > 0 ? c.Value.MillisecondsReceiveTimeout : this._timeout)).ToArray();
-                if (arrTimeout.Length == 0) return;
-
-                for (int i = 0, l = arrTimeout.Length; i < l; i++)
-                {
-                    Request<TResponse> removed;
-                    if (this._dic.TryRemove(arrTimeout[i].Key, out removed))
-                    {
-                        this._client.OnReceiveTimeout(removed.CurrConnection, removed);
-
-                        ThreadPool.QueueUserWorkItem(_ =>
-                        {
-                            try { removed.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, removed.CmdName)); }
-                            catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                        });
-                    }
-                }
             }
             #endregion
         }

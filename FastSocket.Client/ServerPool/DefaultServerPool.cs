@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Sodao.FastSocket.SocketBase.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
-using Sodao.FastSocket.SocketBase.Utils;
 
 namespace Sodao.FastSocket.Client
 {
@@ -68,13 +68,17 @@ namespace Sodao.FastSocket.Client
         /// <returns></returns>
         public bool TryRegisterNode(string name, EndPoint endPoint)
         {
-            SocketConnector node = null;
+            SocketConnector connector = null;
             lock (this)
             {
                 if (this._dicNodes.ContainsKey(name)) return false;
-                this._dicNodes[name] = node = new SocketConnector(name, endPoint, this._host, this.OnConnected, this.OnDisconnected);
+
+                connector = new SocketConnector(name, endPoint, this._host);
+                connector.Connected += this.OnConnected;
+                connector.Disconnected += this.OnDisconnected;
+                this._dicNodes[name] = connector;
             }
-            node.Start();
+            connector.Start();
             return true;
         }
         /// <summary>
@@ -87,19 +91,19 @@ namespace Sodao.FastSocket.Client
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentNullException("name");
 
-            SocketConnector node = null;
+            SocketConnector connector = null;
             SocketBase.IConnection connection = null;
             lock (this)
             {
-                //remove node by name,
-                if (this._dicNodes.TryGetValue(name, out node)) this._dicNodes.Remove(name);
+                //remove node by name
+                if (this._dicNodes.TryGetValue(name, out connector)) this._dicNodes.Remove(name);
                 //get connection by name.
                 this._dicConnections.TryGetValue(name, out connection);
             }
 
-            if (node != null) node.Stop();
+            if (connector != null) connector.Stop();
             if (connection != null) connection.BeginDisconnect();
-            return node != null;
+            return connector != null;
         }
         /// <summary>
         /// acquire a connection
@@ -148,23 +152,17 @@ namespace Sodao.FastSocket.Client
             this.Connected(node.Name, connection);
 
             bool isActive = false;
-            SocketBase.IConnection oldConnection = null;
             lock (this)
-            {
-                //remove exists connection by name.
-                if (this._dicConnections.TryGetValue(node.Name, out oldConnection)) this._dicConnections.Remove(node.Name);
-                //add curr connection to list if node is active
-                if (isActive = this._dicNodes.ContainsKey(node.Name)) this._dicConnections[node.Name] = connection;
+                if (this._dicNodes.ContainsKey(node.Name))
+                {
+                    isActive = true;
+                    this._dicConnections[node.Name] = connection;
+                    this._arrConnections = this._dicConnections.Values.ToArray();
+                    this._hashConnections = new ConsistentHashContainer<SocketBase.IConnection>(this._dicConnections);
+                }
 
-                this._arrConnections = this._dicConnections.Values.ToArray();
-                this._hashConnections = new ConsistentHashContainer<SocketBase.IConnection>(this._dicConnections);
-            }
-            //disconect old connection.
-            if (oldConnection != null) oldConnection.BeginDisconnect();
-            //disconnect not active node connection.
-            if (!isActive) connection.BeginDisconnect();
-            //fire server available event.
-            if (isActive && this.ServerAvailable != null) this.ServerAvailable(node.Name, connection);
+            if (isActive) this.ServerAvailable(node.Name, connection);
+            else connection.BeginDisconnect();
         }
         /// <summary>
         /// on disconnected
@@ -176,7 +174,6 @@ namespace Sodao.FastSocket.Client
             lock (this)
             {
                 if (!this._dicConnections.Remove(node.Name)) return;
-
                 this._arrConnections = this._dicConnections.Values.ToArray();
                 this._hashConnections = new ConsistentHashContainer<SocketBase.IConnection>(this._dicConnections);
             }

@@ -13,9 +13,9 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         internal int SentSize = 0;
         /// <summary>
-        /// get begin time
+        /// get the packet created time
         /// </summary>
-        public readonly DateTime BeginTime = DateTime.UtcNow;
+        public readonly DateTime CreatedTime = DateTime.UtcNow;
         /// <summary>
         /// get payload
         /// </summary>

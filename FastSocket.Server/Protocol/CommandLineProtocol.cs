@@ -1,7 +1,7 @@
-﻿using System;
+﻿using Sodao.FastSocket.SocketBase;
+using System;
 using System.Linq;
 using System.Text;
-using Sodao.FastSocket.SocketBase;
 
 namespace Sodao.FastSocket.Server.Protocol
 {
@@ -25,10 +25,13 @@ namespace Sodao.FastSocket.Server.Protocol
         public Command.StringCommandInfo FindCommandInfo(IConnection connection, ArraySegment<byte> buffer,
             int maxMessageSize, out int readlength)
         {
-            if (buffer.Count < 2) { readlength = 0; return null; }
+            if (buffer.Count < 2)
+            {
+                readlength = 0;
+                return null;
+            }
 
             var payload = buffer.Array;
-
             //查找\r\n标记符
             for (int i = buffer.Offset, len = buffer.Offset + buffer.Count; i < len; i++)
             {
@@ -44,7 +47,8 @@ namespace Sodao.FastSocket.Server.Protocol
 
                     var arr = command.Split(SPLITER, StringSplitOptions.RemoveEmptyEntries);
                     if (arr.Length == 1) return new Command.StringCommandInfo(arr[0], null);
-                    else return new Command.StringCommandInfo(arr[0], arr.Skip(1).ToArray());
+
+                    return new Command.StringCommandInfo(arr[0], arr.Skip(1).ToArray());
                 }
             }
             readlength = 0;

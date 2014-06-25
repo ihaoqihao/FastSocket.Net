@@ -15,7 +15,7 @@ namespace Server
         }
     }
 
-    public class UdpService : Sodao.FastSocket.Server.IUdpService<MyCmdInfo>
+    public class UdpService : Sodao.FastSocket.Server.AbsUdpService<MyCmdInfo>
     {
         public void OnReceived(Sodao.FastSocket.Server.UdpSession session, MyCmdInfo cmdInfo)
         {

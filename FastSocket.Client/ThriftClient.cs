@@ -81,7 +81,7 @@ namespace Sodao.FastSocket.Client
             if (onResult == null) throw new ArgumentNullException("onResult");
 
             base.Send(new Request<Response.ThriftResponse>(consistentKey, seqID, string.Concat(service, ".", cmdName), payload,
-                onException, response => onResult(response.Buffer)));
+                base.MillisecondsReceiveTimeout, onException, response => onResult(response.Buffer)));
         }
         #endregion
     }

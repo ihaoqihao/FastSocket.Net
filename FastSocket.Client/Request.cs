@@ -21,20 +21,10 @@ namespace Sodao.FastSocket.Client
         /// get command name.
         /// </summary>
         public readonly string CmdName;
-
         /// <summary>
         /// get or set receive time out
         /// </summary>
-        public int MillisecondsReceiveTimeout;
-
-        /// <summary>
-        /// connectionID
-        /// </summary>
-        internal SocketBase.IConnection CurrConnection = null;
-        /// <summary>
-        /// sent time
-        /// </summary>
-        internal DateTime SentTime = DateTime.MaxValue;
+        public readonly int MillisecondsReceiveTimeout;
 
         /// <summary>
         /// 异常回调
@@ -53,10 +43,11 @@ namespace Sodao.FastSocket.Client
         /// <param name="seqID">seqID</param>
         /// <param name="cmdName">command name</param>
         /// <param name="payload">发送内容</param>
+        /// <param name="millisecondsReceiveTimeout"></param>
         /// <param name="onException">异常回调</param>
         /// <param name="onResult">结果回调</param>
-        public Request(int seqID, string cmdName, byte[] payload, Action<Exception> onException, Action<TResponse> onResult)
-            : this(null, seqID, cmdName, payload, onException, onResult)
+        public Request(int seqID, string cmdName, byte[] payload, int millisecondsReceiveTimeout, Action<Exception> onException, Action<TResponse> onResult)
+            : this(null, seqID, cmdName, payload, millisecondsReceiveTimeout, onException, onResult)
         {
         }
         /// <summary>
@@ -66,11 +57,13 @@ namespace Sodao.FastSocket.Client
         /// <param name="seqID">seqID</param>
         /// <param name="cmdName">command name</param>
         /// <param name="payload">发送内容</param>
+        /// <param name="millisecondsReceiveTimeout"></param>
         /// <param name="onException">异常回调</param>
         /// <param name="onResult">结果回调</param>
         /// <exception cref="ArgumentNullException">onException is null</exception>
         /// <exception cref="ArgumentNullException">onResult is null</exception>
-        public Request(byte[] consistentKey, int seqID, string cmdName, byte[] payload, Action<Exception> onException, Action<TResponse> onResult)
+        public Request(byte[] consistentKey, int seqID, string cmdName, byte[] payload, int millisecondsReceiveTimeout,
+            Action<Exception> onException, Action<TResponse> onResult)
             : base(payload)
         {
             if (onException == null) throw new ArgumentNullException("onException");
@@ -79,8 +72,21 @@ namespace Sodao.FastSocket.Client
             this.ConsistentKey = consistentKey;
             this.SeqID = seqID;
             this.CmdName = cmdName;
+            this.MillisecondsReceiveTimeout = millisecondsReceiveTimeout;
             this._onException = onException;
             this._onResult = onResult;
+            this.SentTime = DateTime.MaxValue;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// get sent time
+        /// </summary>
+        public DateTime SentTime
+        {
+            get;
+            internal set;
         }
         #endregion
 

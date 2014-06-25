@@ -24,7 +24,7 @@ namespace Sodao.FastSocket.SocketBase
         /// <param name="connection"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException">connection is null</exception>
-        public bool Add(SocketBase.IConnection connection)
+        public bool Add(IConnection connection)
         {
             if (connection == null) throw new ArgumentNullException("connection");
             return this._dic.TryAdd(connection.ConnectionID, connection);
@@ -44,7 +44,7 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         /// <param name="connectionID"></param>
         /// <returns></returns>
-        public SocketBase.IConnection Get(long connectionID)
+        public IConnection Get(long connectionID)
         {
             IConnection connection;
             this._dic.TryGetValue(connectionID, out connection);
@@ -54,7 +54,7 @@ namespace Sodao.FastSocket.SocketBase
         /// to array
         /// </summary>
         /// <returns></returns>
-        public SocketBase.IConnection[] ToArray()
+        public IConnection[] ToArray()
         {
             return this._dic.ToArray().Select(c => c.Value).ToArray();
         }

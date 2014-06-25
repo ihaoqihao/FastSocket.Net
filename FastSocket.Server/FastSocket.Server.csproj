@@ -38,8 +38,9 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BaseSocketServer.cs" />
+    <Compile Include="AbsSocketServer.cs" />
     <Compile Include="CommandSocketService.cs" />
+    <Compile Include="CommandUdpService.cs" />
     <Compile Include="Command\AsyncBinaryCommandInfo.cs" />
     <Compile Include="Command\ICommand.cs" />
     <Compile Include="Command\ICommandInfo.cs" />
@@ -48,14 +49,13 @@
     <Compile Include="Config\Server.cs" />
     <Compile Include="Config\ServerCollection.cs" />
     <Compile Include="Config\SocketServerConfig.cs" />
-    <Compile Include="IScheduler.cs" />
     <Compile Include="ISocketListener.cs" />
     <Compile Include="IUdpServer.cs" />
-    <Compile Include="IUdpService.cs" />
+    <Compile Include="AbsUdpService.cs" />
     <Compile Include="PacketBuilder.cs" />
     <Compile Include="Protocol\IUdpProtocol.cs" />
     <Compile Include="SocketListener.cs" />
-    <Compile Include="ISocketService.cs" />
+    <Compile Include="AbsSocketService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Protocol\BadProtocolException.cs" />
     <Compile Include="Protocol\AsyncBinaryProtocol.cs" />
@@ -65,7 +65,6 @@
     <Compile Include="Protocol\ThriftProtocol.cs" />
     <Compile Include="SocketServer.cs" />
     <Compile Include="SocketServerManager.cs" />
-    <Compile Include="ThreadPoolScheduler.cs" />
     <Compile Include="UdpServer.cs" />
     <Compile Include="UdpSession.cs" />
   </ItemGroup>

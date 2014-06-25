@@ -1,5 +1,5 @@
-﻿using System;
-using Sodao.FastSocket.SocketBase;
+﻿using Sodao.FastSocket.SocketBase;
+using System;
 
 namespace Sodao.FastSocket.Server.Protocol
 {

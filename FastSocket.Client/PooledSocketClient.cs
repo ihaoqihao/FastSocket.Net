@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Sodao.FastSocket.SocketBase;
+using System;
 using System.Net;
-using Sodao.FastSocket.SocketBase;
 
 namespace Sodao.FastSocket.Client
 {
@@ -70,9 +70,6 @@ namespace Sodao.FastSocket.Client
         /// <param name="connection"></param>
         protected virtual void OnServerPoolServerAvailable(string name, IConnection connection)
         {
-            var arr = base.DequeueAllFromPendingQueue();
-            if (arr == null) return;
-            for (int i = 0, l = arr.Length; i < l; i++) this.Send(arr[i]);
         }
         #endregion
 

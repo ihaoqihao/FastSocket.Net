@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Sodao.FastSocket.SocketBase;
+using System;
 using System.Text;
-using Sodao.FastSocket.SocketBase;
 
 namespace Sodao.FastSocket.Server.Protocol
 {
@@ -24,10 +24,13 @@ namespace Sodao.FastSocket.Server.Protocol
         public Command.AsyncBinaryCommandInfo FindCommandInfo(IConnection connection, ArraySegment<byte> buffer,
             int maxMessageSize, out int readlength)
         {
-            if (buffer.Count < 4) { readlength = 0; return null; }
+            if (buffer.Count < 4)
+            {
+                readlength = 0;
+                return null;
+            }
 
             var payload = buffer.Array;
-
             //获取message length
             var messageLength = SocketBase.Utils.NetworkBitConverter.ToInt32(payload, buffer.Offset);
             if (messageLength < 7) throw new BadProtocolException("bad async binary protocl");
@@ -36,7 +39,8 @@ namespace Sodao.FastSocket.Server.Protocol
             readlength = messageLength + 4;
             if (buffer.Count < readlength)
             {
-                readlength = 0; return null;
+                readlength = 0;
+                return null;
             }
 
             var seqID = SocketBase.Utils.NetworkBitConverter.ToInt32(payload, buffer.Offset + 4);

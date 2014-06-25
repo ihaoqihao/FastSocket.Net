@@ -19,14 +19,22 @@ namespace Sodao.FastSocket.Client.Protocol
         /// <exception cref="BadProtocolException">bad thrift protocol</exception>
         public Response.ThriftResponse FindResponse(SocketBase.IConnection connection, ArraySegment<byte> buffer, out int readlength)
         {
-            if (buffer.Count < 4) { readlength = 0; return null; }
+            if (buffer.Count < 4)
+            {
+                readlength = 0;
+                return null;
+            }
 
             //获取message length
             var messageLength = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset);
             if (messageLength < 14) throw new BadProtocolException("bad thrift protocol");
 
             readlength = messageLength + 4;
-            if (buffer.Count < readlength) { readlength = 0; return null; }
+            if (buffer.Count < readlength)
+            {
+                readlength = 0;
+                return null;
+            }
 
             var cmdLen = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset + 8);
             if (messageLength < cmdLen + 13) throw new BadProtocolException("bad thrift protocol");
