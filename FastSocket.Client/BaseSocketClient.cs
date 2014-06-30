@@ -193,16 +193,13 @@ namespace Sodao.FastSocket.Client
             base.OnSendCallback(connection, packet, isSuccess);
 
             var request = packet as Request<TResponse>;
-            if (request == null) return;
-
             if (isSuccess)
             {
                 request.SentTime = DateTime.UtcNow;
                 return;
             }
 
-            request.SentTime = DateTime.MaxValue;
-            if (this._receivingCollection.TryRemove(request.SeqID) == null) return;
+            this._receivingCollection.TryRemove(request.SeqID);
             if (DateTime.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds < this._millisecondsSendTimeout)
             {
                 this.Send(request);
@@ -291,7 +288,8 @@ namespace Sodao.FastSocket.Client
                 while (count-- > 0)
                 {
                     Request<TResponse> request;
-                    if (this._queue.TryDequeue(out request)) this._onScanning(request);
+                    if (!this._queue.TryDequeue(out request)) break;
+                    this._onScanning(request);
                 }
                 this._timer.Change(200, 0);
             }

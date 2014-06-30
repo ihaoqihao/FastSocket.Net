@@ -204,16 +204,24 @@ namespace Sodao.FastSocket.SocketBase
 
             private Socket _socket = null;
 
-            private SocketAsyncEventArgs _saeSend = null;
+            private readonly SocketAsyncEventArgs _saeSend = null;
             private Packet _currPacket = null;
             private readonly PacketQueue _packetQueue = null;
 
-            private SocketAsyncEventArgs _saeReceive = null;
+            private readonly SocketAsyncEventArgs _saeReceive = null;
             private MemoryStream _tsStream = null;
             private int _isReceiving = 0;
             #endregion
 
             #region Constructors
+            /// <summary>
+            /// new
+            /// </summary>
+            ~DefaultConnection()
+            {
+                this._saeSend.Completed -= this.SendAsyncCompleted;
+                this._saeReceive.Completed -= this.ReceiveAsyncCompleted;
+            }
             /// <summary>
             /// new
             /// </summary>
@@ -344,19 +352,12 @@ namespace Sodao.FastSocket.SocketBase
                 var packets = this._packetQueue.Close();
                 if (packets != null && packets.Length > 0)
                 {
-                    foreach (var packet in packets) this.OnSendCallback(packet, false);
+                    foreach (var packet in packets)
+                        this.OnSendCallback(packet, false);
                 }
 
-                this._saeSend.Completed -= this.SendAsyncCompleted;
-                this._saeSend.UserToken = null;
                 this._saeSend.Dispose();
-                this._saeSend = null;
-
-                this._saeReceive.Completed -= this.ReceiveAsyncCompleted;
-                this._saeReceive.UserToken = null;
                 this._saeReceive.Dispose();
-                this._saeReceive = null;
-
                 this._socket = null;
             }
             #endregion
@@ -414,17 +415,10 @@ namespace Sodao.FastSocket.SocketBase
             /// <exception cref="ArgumentNullException">packet is null</exception>
             private void SendPacketInternal(Packet packet)
             {
-                var e = this._saeSend;
-                if (e == null)
-                {
-                    this.OnSendCallback(packet, false);
-                    return;
-                }
-
                 this._currPacket = packet;
                 this._latestActiveTime = DateTime.UtcNow;
                 this.OnStartSending(packet);
-                this.SendPacketInternal(e);
+                this.SendPacketInternal(this._saeSend);
             }
             /// <summary>
             /// internal send packet.
@@ -513,11 +507,8 @@ namespace Sodao.FastSocket.SocketBase
             /// </summary>
             private void ReceiveInternal()
             {
-                var e = this._saeReceive;
-                if (e == null) return;
-
                 bool completed = true;
-                try { completed = this._socket.ReceiveAsync(e); }
+                try { completed = this._socket.ReceiveAsync(this._saeReceive); }
                 catch (Exception ex)
                 {
                     this.BeginDisconnect(ex);
@@ -525,7 +516,8 @@ namespace Sodao.FastSocket.SocketBase
                 }
 
                 this._latestActiveTime = DateTime.UtcNow;
-                if (!completed) ThreadPool.QueueUserWorkItem(_ => this.ReceiveAsyncCompleted(this, e));
+                if (!completed)
+                    ThreadPool.QueueUserWorkItem(_ => this.ReceiveAsyncCompleted(this, this._saeReceive));
             }
             /// <summary>
             /// async receive callback
@@ -696,7 +688,6 @@ namespace Sodao.FastSocket.SocketBase
                                 return false;
                         }
                     }
-
                     this._sendAction(packet);
                     return true;
                 }
@@ -770,7 +761,6 @@ namespace Sodao.FastSocket.SocketBase
                                 return;
                         }
                     }
-
                     this._sendAction(packet);
                 }
                 #endregion

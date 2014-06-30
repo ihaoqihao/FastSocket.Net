@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq;
+using System.Threading.Tasks;
 
 namespace Client
 {
@@ -7,32 +7,53 @@ namespace Client
     {
         static void Main(string[] args)
         {
+            System.Threading.ThreadPool.SetMinThreads(30, 30);
             Sodao.FastSocket.SocketBase.Log.Trace.EnableConsole();
             Sodao.FastSocket.SocketBase.Log.Trace.EnableDiagnostic();
+            Console.WriteLine("press any key start...");
 
             var client = new Sodao.FastSocket.Client.AsyncBinarySocketClient(8192, 8192, 3000, 3000);
             //注册服务器节点，这里可注册多个(name不能重复）
             client.RegisterServerNode("127.0.0.1:8401", new System.Net.IPEndPoint(System.Net.IPAddress.Parse("127.0.0.1"), 8401));
 
-            for (int j = 0; j < 1000; j++)
-            {
-                //组织sum参数, 格式为<<i:32-limit-endian,....N>>
-                //这里的参数其实也可以使用thrift, protobuf, bson, json等进行序列化，
-                byte[] bytes = null;
-                using (var ms = new System.IO.MemoryStream())
-                {
-                    for (int i = j; i <= j + 10; i++) ms.Write(BitConverter.GetBytes(i), 0, 4);
-                    bytes = ms.ToArray();
-                }
-
-                //发送sum命令
-                client.Send("sum", bytes, res => BitConverter.ToInt32(res.Buffer, 0)).ContinueWith(c =>
-                {
-                    if (c.IsFaulted) { Console.WriteLine(c.Exception.ToString()); return; }
-                    //Console.WriteLine(c.Result);
-                });
-            }
             Console.ReadLine();
+            Call(client, 0);
+            Console.ReadLine();
+        }
+
+        static private void Call(Sodao.FastSocket.Client.AsyncBinarySocketClient client, long i)
+        {
+            var bytes = new byte[new Random().Next(200, 700)];
+            Buffer.BlockCopy(BitConverter.GetBytes(i), 0, bytes, 0, 8);
+
+            Task.Factory.ContinueWhenAll(new Task[] 
+            { 
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+                client.Send("each", bytes, res => BitConverter.ToInt64(res.Buffer, 0)) ,
+            },
+            arr =>
+            {
+                foreach (var child in arr)
+                    if (child.IsFaulted) Console.WriteLine(child.Exception.ToString());
+
+                Console.Write(i.ToString() + " ");
+                Call(client, i + 1);
+            });
         }
     }
 }
