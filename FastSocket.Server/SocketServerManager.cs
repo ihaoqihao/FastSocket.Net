@@ -11,7 +11,16 @@ namespace Sodao.FastSocket.Server
     public class SocketServerManager
     {
         #region Private Members
-        static private readonly List<SocketBase.IHost> _listHosts = new List<SocketBase.IHost>();
+        /// <summary>
+        /// host list
+        /// </summary>
+        static private readonly List<SocketBase.IHost> _listHosts =
+            new List<SocketBase.IHost>();
+        /// <summary>
+        /// key:server name.
+        /// </summary>
+        static private readonly Dictionary<string, SocketBase.IHost> _dicHosts =
+            new Dictionary<string, SocketBase.IHost>();
         #endregion
 
         #region Static Methods
@@ -73,6 +82,7 @@ namespace Sodao.FastSocket.Server
                 host.AddListener(serverConfig.Name, new IPEndPoint(IPAddress.Any, serverConfig.Port));
 
                 _listHosts.Add(host);
+                _dicHosts[serverConfig.Name] = host;
             }
         }
         /// <summary>
@@ -104,6 +114,16 @@ namespace Sodao.FastSocket.Server
         static public void Stop()
         {
             foreach (var server in _listHosts) server.Stop();
+        }
+        /// <summary>
+        /// try get host by name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="host"></param>
+        /// <returns></returns>
+        static public bool TryGetHost(string name, out SocketBase.IHost host)
+        {
+            return _dicHosts.TryGetValue(name, out host);
         }
         #endregion
     }
