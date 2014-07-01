@@ -33,6 +33,11 @@ namespace Sodao.FastSocket.SocketBase
         /// </summary>
         /// <returns></returns>
         IConnection[] ListAllConnection();
+        /// <summary>
+        /// get connection count.
+        /// </summary>
+        /// <returns></returns>
+        int CountConnection();
 
         /// <summary>
         /// 启动

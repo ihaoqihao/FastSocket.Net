@@ -81,6 +81,14 @@ namespace Sodao.FastSocket.SocketBase
         {
             return this._listConnections.ToArray();
         }
+        /// <summary>
+        /// get connection count.
+        /// </summary>
+        /// <returns></returns>
+        public int CountConnection()
+        {
+            return this._listConnections.Count();
+        }
 
         /// <summary>
         /// 启动
@@ -119,14 +127,6 @@ namespace Sodao.FastSocket.SocketBase
                 this._listConnections.Add(connection);
                 this.OnConnected(connection);
             }
-        }
-        /// <summary>
-        /// get connection count.
-        /// </summary>
-        /// <returns></returns>
-        protected int CountConnection()
-        {
-            return this._listConnections.Count();
         }
 
         /// <summary>
