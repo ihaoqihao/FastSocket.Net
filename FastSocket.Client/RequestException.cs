@@ -12,19 +12,20 @@ namespace Sodao.FastSocket.Client
         /// </summary>
         public readonly Errors Error;
         /// <summary>
-        /// get cmdName
+        /// request name
         /// </summary>
-        public readonly string CmdName;
+        public readonly string RequestName;
 
         /// <summary>
         /// new
         /// </summary>
         /// <param name="error"></param>
-        /// <param name="cmdName"></param>
-        public RequestException(Errors error, string cmdName)
-            : base(string.Concat("errorType:", error.ToString(), " cmdName:", cmdName ?? string.Empty))
+        /// <param name="name"></param>
+        public RequestException(Errors error, string name)
+            : base(string.Concat("errorType:", error.ToString(), " name:", name ?? string.Empty))
         {
             this.Error = error;
+            this.RequestName = name;
         }
 
         /// <summary>

@@ -14,10 +14,6 @@ namespace Sodao.FastSocket.Server
         event Action<ISocketListener, SocketBase.IConnection> Accepted;
 
         /// <summary>
-        /// get name
-        /// </summary>
-        string Name { get; }
-        /// <summary>
         /// get endpoint
         /// </summary>
         EndPoint EndPoint { get; }

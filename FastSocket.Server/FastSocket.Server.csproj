@@ -38,27 +38,22 @@
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AbsSocketServer.cs" />
-    <Compile Include="CommandSocketService.cs" />
-    <Compile Include="CommandUdpService.cs" />
-    <Compile Include="Command\AsyncBinaryCommandInfo.cs" />
-    <Compile Include="Command\ICommand.cs" />
-    <Compile Include="Command\ICommandInfo.cs" />
-    <Compile Include="Command\StringCommandInfo.cs" />
-    <Compile Include="Command\ThriftCommandInfo.cs" />
     <Compile Include="Config\Server.cs" />
     <Compile Include="Config\ServerCollection.cs" />
     <Compile Include="Config\SocketServerConfig.cs" />
     <Compile Include="ISocketListener.cs" />
+    <Compile Include="ISocketService.cs" />
     <Compile Include="IUdpServer.cs" />
     <Compile Include="AbsUdpService.cs" />
-    <Compile Include="PacketBuilder.cs" />
+    <Compile Include="IUdpService.cs" />
+    <Compile Include="Messaging\IMessage.cs" />
+    <Compile Include="Messaging\CommandLineMessage.cs" />
+    <Compile Include="Messaging\ThriftMessage.cs" />
     <Compile Include="Protocol\IUdpProtocol.cs" />
     <Compile Include="SocketListener.cs" />
     <Compile Include="AbsSocketService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Protocol\BadProtocolException.cs" />
-    <Compile Include="Protocol\AsyncBinaryProtocol.cs" />
     <Compile Include="Protocol\CommandLineProtocol.cs" />
     <Compile Include="Protocol\ProtocolNames.cs" />
     <Compile Include="Protocol\IProtocol.cs" />

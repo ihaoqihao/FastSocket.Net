@@ -69,9 +69,9 @@ namespace Sodao.FastSocket.Server.Config
             get { return (string)this["serviceType"]; }
         }
         /// <summary>
-        /// 协议, 默认二进制协议
+        /// 协议, 默认命令行协议
         /// </summary>
-        [ConfigurationProperty("protocol", IsRequired = false, DefaultValue = "asyncBinary")]
+        [ConfigurationProperty("protocol", IsRequired = false, DefaultValue = "commandLine")]
         public string Protocol
         {
             get { return (string)this["protocol"]; }

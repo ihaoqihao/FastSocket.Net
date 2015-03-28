@@ -8,17 +8,38 @@ namespace Sodao.FastSocket.SocketBase.Utils
     static public class Date
     {
         #region Private Members
+        static private int lastTicks = -1;
+        static private DateTime lastDateTime;
+
         /// <summary>
         /// unix下的纪元时间
         /// </summary>
-        static private readonly DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        static private readonly DateTime unixEpoch =
+            new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         /// <summary>
         /// the max milliseconds since epoch.
         /// </summary>
-        static private readonly long dateTimeMaxValueMillisecondsSinceEpoch = (DateTime.MaxValue - unixEpoch).Ticks / 10000;
+        static private readonly long dateTimeMaxValueMillisecondsSinceEpoch =
+            (DateTime.MaxValue - unixEpoch).Ticks / 10000;
         #endregion
 
         #region Public Methods
+        /// <summary>
+        /// Gets the current utc time in an optimized fashion.
+        /// </summary>
+        static public DateTime UtcNow
+        {
+            get
+            {
+                int tickCount = Environment.TickCount;
+                if (tickCount == lastTicks) return lastDateTime;
+
+                DateTime dt = DateTime.UtcNow;
+                lastTicks = tickCount;
+                lastDateTime = dt;
+                return dt;
+            }
+        }
         /// <summary>
         /// Converts a DateTime to UTC (with special handling for MinValue and MaxValue).
         /// </summary>

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 
 namespace Sodao.FastSocket.Server
@@ -7,13 +6,13 @@ namespace Sodao.FastSocket.Server
     /// <summary>
     /// socket server.
     /// </summary>
-    /// <typeparam name="TCommandInfo"></typeparam>
-    public class SocketServer<TCommandInfo> : AbsSocketServer where TCommandInfo : class, Command.ICommandInfo
+    /// <typeparam name="TMessage"></typeparam>
+    public class SocketServer<TMessage> : SocketBase.BaseHost where TMessage : class, Messaging.IMessage
     {
         #region Private Members
-        private readonly List<SocketListener> _listListener = new List<SocketListener>();
-        private readonly AbsSocketService<TCommandInfo> _socketService = null;
-        private readonly Protocol.IProtocol<TCommandInfo> _protocol = null;
+        private readonly SocketListener _listener = null;
+        private readonly ISocketService<TMessage> _socketService = null;
+        private readonly Protocol.IProtocol<TMessage> _protocol = null;
         private readonly int _maxMessageSize;
         private readonly int _maxConnections;
         #endregion
@@ -22,6 +21,7 @@ namespace Sodao.FastSocket.Server
         /// <summary>
         /// new
         /// </summary>
+        /// <param name="port"></param>
         /// <param name="socketService"></param>
         /// <param name="protocol"></param>
         /// <param name="socketBufferSize"></param>
@@ -32,8 +32,9 @@ namespace Sodao.FastSocket.Server
         /// <exception cref="ArgumentNullException">protocol is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">maxMessageSize</exception>
         /// <exception cref="ArgumentOutOfRangeException">maxConnections</exception>
-        public SocketServer(AbsSocketService<TCommandInfo> socketService,
-            Protocol.IProtocol<TCommandInfo> protocol,
+        public SocketServer(int port,
+            ISocketService<TMessage> socketService,
+            Protocol.IProtocol<TMessage> protocol,
             int socketBufferSize,
             int messageBufferSize,
             int maxMessageSize,
@@ -49,6 +50,9 @@ namespace Sodao.FastSocket.Server
             this._protocol = protocol;
             this._maxMessageSize = maxMessageSize;
             this._maxConnections = maxConnections;
+
+            this._listener = new SocketListener(new IPEndPoint(IPAddress.Any, port), this);
+            this._listener.Accepted += this.OnAccepted;
         }
         #endregion
 
@@ -58,14 +62,16 @@ namespace Sodao.FastSocket.Server
         /// </summary>
         /// <param name="listener"></param>
         /// <param name="connection"></param>
-        private void listener_Accepted(ISocketListener listener, SocketBase.IConnection connection)
+        private void OnAccepted(ISocketListener listener, SocketBase.IConnection connection)
         {
-            if (base.CountConnection() > this._maxConnections)
+            if (base.CountConnection() < this._maxConnections)
             {
-                connection.BeginDisconnect();
+                base.RegisterConnection(connection);
                 return;
             }
-            base.RegisterConnection(connection);
+
+            SocketBase.Log.Trace.Info("too many connections.");
+            connection.BeginDisconnect();
         }
         #endregion
 
@@ -75,28 +81,16 @@ namespace Sodao.FastSocket.Server
         /// </summary>
         public override void Start()
         {
-            foreach (var child in this._listListener) child.Start();
+            base.Start();
+            this._listener.Start();
         }
         /// <summary>
         /// stop
         /// </summary>
         public override void Stop()
         {
-            foreach (var child in this._listListener) child.Stop();
+            this._listener.Stop();
             base.Stop();
-        }
-        /// <summary>
-        /// add socket listener
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="endPoint"></param>
-        /// <returns></returns>
-        public override ISocketListener AddListener(string name, IPEndPoint endPoint)
-        {
-            var listener = new SocketListener(name, endPoint, this);
-            this._listListener.Add(listener);
-            listener.Accepted += this.listener_Accepted;
-            return listener;
         }
         /// <summary>
         /// OnConnected
@@ -113,7 +107,8 @@ namespace Sodao.FastSocket.Server
         /// <param name="connection"></param>
         /// <param name="packet"></param>
         /// <param name="isSuccess"></param>
-        protected override void OnSendCallback(SocketBase.IConnection connection, SocketBase.Packet packet, bool isSuccess)
+        protected override void OnSendCallback(SocketBase.IConnection connection,
+            SocketBase.Packet packet, bool isSuccess)
         {
             base.OnSendCallback(connection, packet, isSuccess);
             this._socketService.OnSendCallback(connection, packet, isSuccess);
@@ -123,13 +118,14 @@ namespace Sodao.FastSocket.Server
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="e"></param>
-        protected override void OnMessageReceived(SocketBase.IConnection connection, SocketBase.MessageReceivedEventArgs e)
+        protected override void OnMessageReceived(SocketBase.IConnection connection,
+            SocketBase.MessageReceivedEventArgs e)
         {
             base.OnMessageReceived(connection, e);
 
             int readlength;
-            TCommandInfo cmdInfo = null;
-            try { cmdInfo = this._protocol.FindCommandInfo(connection, e.Buffer, this._maxMessageSize, out readlength); }
+            TMessage message = null;
+            try { message = this._protocol.Parse(connection, e.Buffer, this._maxMessageSize, out readlength); }
             catch (Exception ex)
             {
                 this.OnConnectionError(connection, ex);
@@ -138,7 +134,7 @@ namespace Sodao.FastSocket.Server
                 return;
             }
 
-            if (cmdInfo != null) this._socketService.OnReceived(connection, cmdInfo);
+            if (message != null) this._socketService.OnReceived(connection, message);
             e.SetReadlength(readlength);
         }
         /// <summary>

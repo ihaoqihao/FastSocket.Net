@@ -8,15 +8,15 @@ namespace Sodao.FastSocket.Server
     /// </summary>
     public sealed class UdpSession
     {
-        #region Members
+        /// <summary>
+        /// udp server
+        /// </summary>
         private readonly IUdpServer _server = null;
         /// <summary>
         /// get remote endPoint
         /// </summary>
         public readonly EndPoint RemoteEndPoint = null;
-        #endregion
 
-        #region Constructors
         /// <summary>
         /// new
         /// </summary>
@@ -29,9 +29,7 @@ namespace Sodao.FastSocket.Server
             this.RemoteEndPoint = remoteEndPoint;
             this._server = server;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// sned async
         /// </summary>
@@ -41,6 +39,5 @@ namespace Sodao.FastSocket.Server
         {
             this._server.SendTo(this.RemoteEndPoint, payload);
         }
-        #endregion
     }
 }

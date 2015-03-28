@@ -26,9 +26,9 @@ namespace Sodao.FastSocket.Server
     /// <summary>
     /// upd server interface
     /// </summary>
-    /// <typeparam name="TCommandInfo"></typeparam>
-    public interface IUdpServer<TCommandInfo> : IUdpServer where TCommandInfo : class, Command.ICommandInfo
+    /// <typeparam name="TMessage"></typeparam>
+    public interface IUdpServer<TMessage> : IUdpServer
+        where TMessage : class, Messaging.IMessage
     {
-
     }
 }

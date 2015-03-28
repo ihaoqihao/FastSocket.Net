@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Net;
+using System.Linq;
 
 namespace Sodao.FastSocket.Server
 {
@@ -11,11 +11,6 @@ namespace Sodao.FastSocket.Server
     public class SocketServerManager
     {
         #region Private Members
-        /// <summary>
-        /// host list
-        /// </summary>
-        static private readonly List<SocketBase.IHost> _listHosts =
-            new List<SocketBase.IHost>();
         /// <summary>
         /// key:server name.
         /// </summary>
@@ -59,30 +54,20 @@ namespace Sodao.FastSocket.Server
                 var tService = Type.GetType(serverConfig.ServiceType, false);
                 if (tService == null) throw new InvalidOperationException("serviceType");
 
-                var tAbsService = tService;
-                while (true)
-                {
-                    tAbsService = tAbsService.BaseType;
-                    if (tAbsService.Name == typeof(AbsSocketService<>).Name) break;
-                }
-
                 var objService = Activator.CreateInstance(tService);
                 if (objService == null) throw new InvalidOperationException("serviceType");
 
                 //init host.
-                var host = Activator.CreateInstance(typeof(SocketServer<>).MakeGenericType(
-                    tAbsService.GetGenericArguments()),
-                    objService,
-                    objProtocol,
-                    serverConfig.SocketBufferSize,
-                    serverConfig.MessageBufferSize,
-                    serverConfig.MaxMessageSize,
-                    serverConfig.MaxConnections) as AbsSocketServer;
-
-                host.AddListener(serverConfig.Name, new IPEndPoint(IPAddress.Any, serverConfig.Port));
-
-                _listHosts.Add(host);
-                _dicHosts[serverConfig.Name] = host;
+                _dicHosts.Add(serverConfig.Name, Activator.CreateInstance(
+                    typeof(SocketServer<>).MakeGenericType(
+                    objProtocol.GetType().GetInterface(typeof(Protocol.IProtocol<>).Name).GetGenericArguments()),
+                        serverConfig.Port,
+                        objService,
+                        objProtocol,
+                        serverConfig.SocketBufferSize,
+                        serverConfig.MessageBufferSize,
+                        serverConfig.MaxMessageSize,
+                        serverConfig.MaxConnections) as SocketBase.IHost);
             }
         }
         /// <summary>
@@ -94,7 +79,6 @@ namespace Sodao.FastSocket.Server
         {
             switch (protocol)
             {
-                case Protocol.ProtocolNames.AsyncBinary: return new Protocol.AsyncBinaryProtocol();
                 case Protocol.ProtocolNames.Thrift: return new Protocol.ThriftProtocol();
                 case Protocol.ProtocolNames.CommandLine: return new Protocol.CommandLineProtocol();
             }
@@ -106,14 +90,14 @@ namespace Sodao.FastSocket.Server
         /// </summary>
         static public void Start()
         {
-            foreach (var server in _listHosts) server.Start();
+            _dicHosts.ToList().ForEach(c => c.Value.Start());
         }
         /// <summary>
         /// 停止服务
         /// </summary>
         static public void Stop()
         {
-            foreach (var server in _listHosts) server.Stop();
+            _dicHosts.ToList().ForEach(c => c.Value.Stop());
         }
         /// <summary>
         /// try get host by name.

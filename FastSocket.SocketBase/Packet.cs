@@ -15,7 +15,7 @@ namespace Sodao.FastSocket.SocketBase
         /// <summary>
         /// get the packet created time
         /// </summary>
-        public readonly DateTime CreatedTime = DateTime.UtcNow;
+        public readonly DateTime CreatedTime = Utils.Date.UtcNow;
         /// <summary>
         /// get payload
         /// </summary>

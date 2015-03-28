@@ -1,14 +1,12 @@
 ﻿using System;
-using Sodao.FastSocket.Client.Response;
 
 namespace Sodao.FastSocket.Client
 {
     /// <summary>
     /// thrift client
     /// </summary>
-    public class ThriftClient : PooledSocketClient<ThriftResponse>
+    public class ThriftClient : SocketClient<Messaging.ThriftMessage>
     {
-        #region Constructors
         /// <summary>
         /// new
         /// </summary>
@@ -43,9 +41,7 @@ namespace Sodao.FastSocket.Client
             millisecondsReceiveTimeout)
         {
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// send
         /// </summary>
@@ -58,31 +54,12 @@ namespace Sodao.FastSocket.Client
         public void Send(string service, string cmdName, int seqID, byte[] payload,
             Action<Exception> onException, Action<byte[]> onResult)
         {
-            this.Send(null, service, cmdName, seqID, payload, onException, onResult);
-        }
-        /// <summary>
-        /// sned
-        /// </summary>
-        /// <param name="consistentKey"></param>
-        /// <param name="service"></param>
-        /// <param name="cmdName"></param>
-        /// <param name="seqID"></param>
-        /// <param name="payload"></param>
-        /// <param name="onException"></param>
-        /// <param name="onResult"></param>
-        /// <exception cref="ArgumentNullException">payload is null or empty</exception>
-        /// <exception cref="ArgumentNullException">onException is null</exception>
-        /// <exception cref="ArgumentNullException">onResult is null</exception>
-        public void Send(byte[] consistentKey, string service, string cmdName, int seqID, byte[] payload,
-            Action<Exception> onException, Action<byte[]> onResult)
-        {
             if (payload == null || payload.Length == 0) throw new ArgumentNullException("payload");
             if (onException == null) throw new ArgumentNullException("onException");
             if (onResult == null) throw new ArgumentNullException("onResult");
 
-            base.Send(new Request<Response.ThriftResponse>(consistentKey, seqID, string.Concat(service, ".", cmdName), payload,
-                base.MillisecondsReceiveTimeout, onException, response => onResult(response.Buffer)));
+            base.Send(new Request<Messaging.ThriftMessage>(seqID, string.Concat(service, ".", cmdName), payload,
+                base.MillisecondsReceiveTimeout, onException, message => onResult(message.Payload)));
         }
-        #endregion
     }
 }

@@ -30,7 +30,7 @@ namespace Server
 
     public class UdpProtocol : Sodao.FastSocket.Server.Protocol.IUdpProtocol<MyCmdInfo>
     {
-        public MyCmdInfo FindCommandInfo(ArraySegment<byte> buffer)
+        public MyCmdInfo Parse(ArraySegment<byte> buffer)
         {
             //<<len:32-little-endia,cmdName:8,payload:binary>>
             //len = cmdName.length(1) + payload.length

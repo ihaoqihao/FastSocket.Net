@@ -1,16 +1,14 @@
-﻿using Sodao.FastSocket.SocketBase;
-using System;
+﻿using System;
 
 namespace Sodao.FastSocket.Server.Protocol
 {
     /// <summary>
     /// thrift protocol
     /// </summary>
-    public sealed class ThriftProtocol : IProtocol<Command.ThriftCommandInfo>
+    public sealed class ThriftProtocol : IProtocol<Messaging.ThriftMessage>
     {
-        #region IProtocol Members
         /// <summary>
-        /// find command
+        /// parse
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="buffer"></param>
@@ -18,7 +16,7 @@ namespace Sodao.FastSocket.Server.Protocol
         /// <param name="readlength"></param>
         /// <returns></returns>
         /// <exception cref="BadProtocolException">bad thrift protocol</exception>
-        public Command.ThriftCommandInfo FindCommandInfo(IConnection connection, ArraySegment<byte> buffer,
+        public Messaging.ThriftMessage Parse(SocketBase.IConnection connection, ArraySegment<byte> buffer,
             int maxMessageSize, out int readlength)
         {
             if (buffer.Count < 4)
@@ -27,9 +25,8 @@ namespace Sodao.FastSocket.Server.Protocol
                 return null;
             }
 
-            var payload = buffer.Array;
             //获取message length
-            var messageLength = SocketBase.Utils.NetworkBitConverter.ToInt32(payload, buffer.Offset);
+            var messageLength = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset);
             if (messageLength < 14) throw new BadProtocolException("bad thrift protocol");
             if (messageLength > maxMessageSize) throw new BadProtocolException("message is too long");
 
@@ -40,11 +37,9 @@ namespace Sodao.FastSocket.Server.Protocol
                 return null;
             }
 
-            var data = new byte[messageLength];
-            Buffer.BlockCopy(payload, buffer.Offset + 4, data, 0, messageLength);
-
-            return new Command.ThriftCommandInfo(data);
+            var payload = new byte[messageLength];
+            Buffer.BlockCopy(buffer.Array, buffer.Offset + 4, payload, 0, messageLength);
+            return new Messaging.ThriftMessage(payload);
         }
-        #endregion
     }
 }

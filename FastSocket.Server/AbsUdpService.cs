@@ -3,17 +3,26 @@
 namespace Sodao.FastSocket.Server
 {
     /// <summary>
-    /// udp service interface.
+    /// udp service
     /// </summary>
-    /// <typeparam name="TCommandInfo"></typeparam>
-    public abstract class AbsUdpService<TCommandInfo> where TCommandInfo : class, Command.ICommandInfo
+    /// <typeparam name="TMessage"></typeparam>
+    public abstract class AbsUdpService<TMessage> : IUdpService<TMessage>
+        where TMessage : class, Messaging.IMessage
     {
         /// <summary>
-        /// OnReceived
+        /// on message received
         /// </summary>
         /// <param name="session"></param>
-        /// <param name="cmdInfo"></param>
-        public virtual void OnReceived(UdpSession session, TCommandInfo cmdInfo)
+        /// <param name="message"></param>
+        public virtual void OnReceived(UdpSession session, TMessage message)
+        {
+        }
+        /// <summary>
+        /// on error
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="ex"></param>
+        public virtual void OnError(UdpSession session, Exception ex)
         {
         }
     }

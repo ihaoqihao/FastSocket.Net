@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -15,6 +16,7 @@ namespace Sodao.FastSocket.SocketBase
         #region Members
         private long _connectionID = 1000L;
         private readonly ConnectionCollection _listConnections = new ConnectionCollection();
+        private readonly SocketAsyncEventArgsPool _saePool = null;
         #endregion
 
         #region Constructors
@@ -32,6 +34,7 @@ namespace Sodao.FastSocket.SocketBase
 
             this.SocketBufferSize = socketBufferSize;
             this.MessageBufferSize = messageBufferSize;
+            this._saePool = new SocketAsyncEventArgsPool(messageBufferSize);
         }
         #endregion
 
@@ -128,7 +131,6 @@ namespace Sodao.FastSocket.SocketBase
                 this.OnConnected(connection);
             }
         }
-
         /// <summary>
         /// OnConnected
         /// </summary>
@@ -190,6 +192,59 @@ namespace Sodao.FastSocket.SocketBase
         }
         #endregion
 
+        /// <summary>
+        /// <see cref="SocketAsyncEventArgs"/> pool
+        /// </summary>
+        private class SocketAsyncEventArgsPool
+        {
+            #region Private Members
+            private readonly int _messageBufferSize;
+            private readonly ConcurrentStack<SocketAsyncEventArgs> _pool =
+                new ConcurrentStack<SocketAsyncEventArgs>();
+            #endregion
+
+            #region Constructors
+            /// <summary>
+            /// new
+            /// </summary>
+            /// <param name="messageBufferSize"></param>
+            public SocketAsyncEventArgsPool(int messageBufferSize)
+            {
+                this._messageBufferSize = messageBufferSize;
+            }
+            #endregion
+
+            #region Public Methods
+            /// <summary>
+            /// acquire
+            /// </summary>
+            /// <returns></returns>
+            public SocketAsyncEventArgs Acquire()
+            {
+                SocketAsyncEventArgs e = null;
+                if (this._pool.TryPop(out e)) return e;
+
+                e = new SocketAsyncEventArgs();
+                e.SetBuffer(new byte[this._messageBufferSize], 0, this._messageBufferSize);
+                return e;
+            }
+            /// <summary>
+            /// release
+            /// </summary>
+            /// <param name="e"></param>
+            public void Release(SocketAsyncEventArgs e)
+            {
+                if (this._pool.Count < 10000)
+                {
+                    this._pool.Push(e);
+                    return;
+                }
+
+                e.Dispose();
+            }
+            #endregion
+        }
+
         #region DefaultConnection
         /// <summary>
         /// default socket connection
@@ -198,30 +253,22 @@ namespace Sodao.FastSocket.SocketBase
         {
             #region Private Members
             private int _active = 1;
-            private DateTime _latestActiveTime = DateTime.UtcNow;
+            private DateTime _latestActiveTime = Utils.Date.UtcNow;
             private readonly int _messageBufferSize;
             private readonly BaseHost _host = null;
 
-            private Socket _socket = null;
+            private readonly Socket _socket = null;
 
-            private readonly SocketAsyncEventArgs _saeSend = null;
-            private Packet _currPacket = null;
+            private SocketAsyncEventArgs _saeSend = null;
+            private Packet _currSendingPacket = null;
             private readonly PacketQueue _packetQueue = null;
 
-            private readonly SocketAsyncEventArgs _saeReceive = null;
+            private SocketAsyncEventArgs _saeReceive = null;
             private MemoryStream _tsStream = null;
             private int _isReceiving = 0;
             #endregion
 
             #region Constructors
-            /// <summary>
-            /// new
-            /// </summary>
-            ~DefaultConnection()
-            {
-                this._saeSend.Completed -= this.SendAsyncCompleted;
-                this._saeReceive.Completed -= this.ReceiveAsyncCompleted;
-            }
             /// <summary>
             /// new
             /// </summary>
@@ -247,16 +294,14 @@ namespace Sodao.FastSocket.SocketBase
                 }
                 catch (Exception ex) { Log.Trace.Error("get socket endPoint error.", ex); }
 
-                //init send socketAsyncEventArgs
-                this._saeSend = new SocketAsyncEventArgs();
-                this._saeSend.SetBuffer(new byte[host.MessageBufferSize], 0, host.MessageBufferSize);
-                this._saeSend.Completed += new EventHandler<SocketAsyncEventArgs>(this.SendAsyncCompleted);
+                //init send
+                this._saeSend = host._saePool.Acquire();
+                this._saeSend.Completed += this.SendAsyncCompleted;
                 this._packetQueue = new PacketQueue(this.SendPacketInternal);
 
-                //init receive socketAsyncEventArgs
-                this._saeReceive = new SocketAsyncEventArgs();
-                this._saeReceive.SetBuffer(new byte[host.MessageBufferSize], 0, host.MessageBufferSize);
-                this._saeReceive.Completed += new EventHandler<SocketAsyncEventArgs>(this.ReceiveAsyncCompleted);
+                //init receive
+                this._saeReceive = host._saePool.Acquire();
+                this._saeReceive.Completed += this.ReceiveAsyncCompleted;
             }
             #endregion
 
@@ -283,35 +328,19 @@ namespace Sodao.FastSocket.SocketBase
             /// <summary>
             /// get the connection id.
             /// </summary>
-            public long ConnectionID
-            {
-                get;
-                private set;
-            }
+            public long ConnectionID { get; private set; }
             /// <summary>
             /// 获取本地IP地址
             /// </summary>
-            public IPEndPoint LocalEndPoint
-            {
-                get;
-                private set;
-            }
+            public IPEndPoint LocalEndPoint { get; private set; }
             /// <summary>
             /// 获取远程IP地址
             /// </summary>
-            public IPEndPoint RemoteEndPoint
-            {
-                get;
-                private set;
-            }
+            public IPEndPoint RemoteEndPoint { get; private set; }
             /// <summary>
             /// 获取或设置与用户数据
             /// </summary>
-            public object UserData
-            {
-                get;
-                set;
-            }
+            public object UserData { get; set; }
 
             /// <summary>
             /// 异步发送数据
@@ -319,8 +348,8 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="packet"></param>
             public void BeginSend(Packet packet)
             {
-                if (this._packetQueue.TrySend(packet)) return;
-                this.OnSendCallback(packet, false);
+                if (!this._packetQueue.TrySend(packet))
+                    this.OnSendCallback(packet, false);
             }
             /// <summary>
             /// 异步接收数据
@@ -345,20 +374,41 @@ namespace Sodao.FastSocket.SocketBase
 
             #region Free
             /// <summary>
-            /// free
+            /// free send queue
             /// </summary>
-            private void Free()
+            private void FreeSendQueue()
             {
-                var packets = this._packetQueue.Close();
-                if (packets != null && packets.Length > 0)
-                {
-                    foreach (var packet in packets)
-                        this.OnSendCallback(packet, false);
-                }
+                var result = this._packetQueue.Close();
+                if (result.BeforeState == PacketQueue.CLOSED) return;
 
-                this._saeSend.Dispose();
-                this._saeReceive.Dispose();
-                this._socket = null;
+                if (result.Packets != null)
+                    foreach (var p in result.Packets) this.OnSendCallback(p, false);
+
+                if (result.BeforeState == PacketQueue.IDLE) this.FreeSend();
+            }
+            /// <summary>
+            /// free for send.
+            /// </summary>
+            private void FreeSend()
+            {
+                this._currSendingPacket = null;
+                this._saeSend.Completed -= this.SendAsyncCompleted;
+                this._host._saePool.Release(this._saeSend);
+                this._saeSend = null;
+            }
+            /// <summary>
+            /// free fo receive.
+            /// </summary>
+            private void FreeReceive()
+            {
+                this._saeReceive.Completed -= this.ReceiveAsyncCompleted;
+                this._host._saePool.Release(this._saeReceive);
+                this._saeReceive = null;
+                if (this._tsStream != null)
+                {
+                    this._tsStream.Close();
+                    this._tsStream = null;
+                }
             }
             #endregion
 
@@ -378,7 +428,9 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="isSuccess"></param>
             private void OnSendCallback(Packet packet, bool isSuccess)
             {
-                if (!isSuccess) packet.SentSize = 0;
+                if (isSuccess) this._latestActiveTime = Utils.Date.UtcNow;
+                else packet.SentSize = 0;
+
                 this._host.OnSendCallback(this, packet, isSuccess);
             }
             /// <summary>
@@ -387,6 +439,7 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="e"></param>
             private void OnMessageReceived(MessageReceivedEventArgs e)
             {
+                this._latestActiveTime = Utils.Date.UtcNow;
                 this._host.OnMessageReceived(this, e);
             }
             /// <summary>
@@ -415,8 +468,7 @@ namespace Sodao.FastSocket.SocketBase
             /// <exception cref="ArgumentNullException">packet is null</exception>
             private void SendPacketInternal(Packet packet)
             {
-                this._currPacket = packet;
-                this._latestActiveTime = DateTime.UtcNow;
+                this._currSendingPacket = packet;
                 this.OnStartSending(packet);
                 this.SendPacketInternal(this._saeSend);
             }
@@ -426,9 +478,9 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="e"></param>
             private void SendPacketInternal(SocketAsyncEventArgs e)
             {
-                var packet = this._currPacket;
+                var packet = this._currSendingPacket;
 
-                //按_messageBufferSize大小分块传输
+                //按messageBufferSize大小分块传输
                 var length = Math.Min(packet.Payload.Length - packet.SentSize, this._messageBufferSize);
                 var completedAsync = true;
                 try
@@ -441,6 +493,7 @@ namespace Sodao.FastSocket.SocketBase
                 catch (Exception ex)
                 {
                     this.BeginDisconnect(ex);
+                    this.FreeSend();
                     this.OnSendCallback(packet, false);
                     this.OnError(ex);
                 }
@@ -455,12 +508,13 @@ namespace Sodao.FastSocket.SocketBase
             /// <param name="e"></param>
             private void SendAsyncCompleted(object sender, SocketAsyncEventArgs e)
             {
-                var packet = this._currPacket;
+                var packet = this._currSendingPacket;
 
                 //send error!
                 if (e.SocketError != SocketError.Success)
                 {
                     this.BeginDisconnect(new SocketException((int)e.SocketError));
+                    this.FreeSend();
                     this.OnSendCallback(packet, false);
                     return;
                 }
@@ -479,6 +533,7 @@ namespace Sodao.FastSocket.SocketBase
                     catch (Exception ex)
                     {
                         this.BeginDisconnect(ex);
+                        this.FreeSend();
                         this.OnSendCallback(packet, false);
                         this.OnError(ex);
                     }
@@ -490,11 +545,11 @@ namespace Sodao.FastSocket.SocketBase
                 {
                     if (packet.IsSent())
                     {
-                        this._currPacket = null;
+                        this._currSendingPacket = null;
                         this.OnSendCallback(packet, true);
 
                         //try send next packet
-                        this._packetQueue.TrySendNext();
+                        if (!this._packetQueue.TrySendNext()) this.FreeSend();
                     }
                     else this.SendPacketInternal(e);//continue send this packet
                 }
@@ -512,10 +567,10 @@ namespace Sodao.FastSocket.SocketBase
                 catch (Exception ex)
                 {
                     this.BeginDisconnect(ex);
+                    this.FreeReceive();
                     this.OnError(ex);
                 }
 
-                this._latestActiveTime = DateTime.UtcNow;
                 if (!completed)
                     ThreadPool.QueueUserWorkItem(_ => this.ReceiveAsyncCompleted(this, this._saeReceive));
             }
@@ -529,12 +584,14 @@ namespace Sodao.FastSocket.SocketBase
                 if (e.SocketError != SocketError.Success)
                 {
                     this.BeginDisconnect(new SocketException((int)e.SocketError));
+                    this.FreeReceive();
                     return;
                 }
 
                 if (e.BytesTransferred < 1)
                 {
                     this.BeginDisconnect();
+                    this.FreeReceive();
                     return;
                 }
 
@@ -590,33 +647,44 @@ namespace Sodao.FastSocket.SocketBase
             /// <summary>
             /// disconnect
             /// </summary>
-            private void DisconnectInternal(Exception ex)
+            /// <param name="reason"></param>
+            private void DisconnectInternal(Exception reason)
             {
+                var e = new SocketAsyncEventArgs();
+                e.Completed += this.DisconnectAsyncCompleted;
+                e.UserToken = reason;
+
+                var completedAsync = true;
                 try
                 {
                     this._socket.Shutdown(SocketShutdown.Both);
-                    this._socket.BeginDisconnect(false, this.DisconnectCallback, ex);
+                    completedAsync = this._socket.DisconnectAsync(e);
                 }
-                catch (Exception ex2)
-                {
-                    Log.Trace.Error(ex2.Message, ex2);
-                    ThreadPool.QueueUserWorkItem(_ => this.DisconnectCallback(null));
-                }
+                catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
+
+                if (!completedAsync)
+                    ThreadPool.QueueUserWorkItem(_ => this.DisconnectAsyncCompleted(this, e));
             }
             /// <summary>
-            /// disconnect callback
+            /// async disconnect callback
             /// </summary>
-            /// <param name="result"></param>
-            private void DisconnectCallback(IAsyncResult result)
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
+            private void DisconnectAsyncCompleted(object sender, SocketAsyncEventArgs e)
             {
-                try { if (result != null) this._socket.EndDisconnect(result); }
+                //dispose socket
+                try { this._socket.Close(); }
                 catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
-                finally { this._socket.Close(); }
 
-                //fire disconnected.
-                this.OnDisconnected(result == null ? null : result.AsyncState as Exception);
-                //dispose
-                this.Free();
+                //dispose socketAsyncEventArgs
+                var reason = e.UserToken as Exception;
+                e.Completed -= this.DisconnectAsyncCompleted;
+                e.Dispose();
+
+                //fire disconnected
+                this.OnDisconnected(reason);
+                //close send queue
+                this.FreeSendQueue();
             }
             #endregion
 
@@ -629,11 +697,11 @@ namespace Sodao.FastSocket.SocketBase
             private class PacketQueue
             {
                 #region Private Members
-                private const int IDLE = 1;     //空闲状态
-                private const int SENDING = 2;  //发送中
-                private const int ENQUEUE = 3;  //入列状态
-                private const int DEQUEUE = 4;  //出列状态
-                private const int CLOSED = 5;   //已关闭
+                public const int IDLE = 1;     //空闲状态
+                public const int SENDING = 2;  //发送中
+                public const int ENQUEUE = 3;  //入列状态
+                public const int DEQUEUE = 4;  //出列状态
+                public const int CLOSED = 5;   //已关闭
 
                 private int _state = IDLE;      //当前状态
                 private Queue<Packet> _queue = new Queue<Packet>();
@@ -658,7 +726,7 @@ namespace Sodao.FastSocket.SocketBase
                 /// try send packet
                 /// </summary>
                 /// <param name="packet"></param>
-                /// <returns></returns>
+                /// <returns>if CLOSED return false.</returns>
                 public bool TrySend(Packet packet)
                 {
                     var spin = true;
@@ -668,9 +736,7 @@ namespace Sodao.FastSocket.SocketBase
                         {
                             case IDLE:
                                 if (Interlocked.CompareExchange(ref this._state, SENDING, IDLE) == IDLE)
-                                {
                                     spin = false;
-                                }
                                 break;
                             case SENDING:
                                 if (Interlocked.CompareExchange(ref this._state, ENQUEUE, SENDING) == SENDING)
@@ -692,12 +758,13 @@ namespace Sodao.FastSocket.SocketBase
                     return true;
                 }
                 /// <summary>
-                /// close and clear
+                /// close
                 /// </summary>
                 /// <returns></returns>
-                public Packet[] Close()
+                public CloseResult Close()
                 {
                     var spin = true;
+                    int beforeState = -1;
                     while (spin)
                     {
                         switch (this._state)
@@ -706,20 +773,22 @@ namespace Sodao.FastSocket.SocketBase
                                 if (Interlocked.CompareExchange(ref this._state, CLOSED, IDLE) == IDLE)
                                 {
                                     spin = false;
+                                    beforeState = IDLE;
                                 }
                                 break;
                             case SENDING:
                                 if (Interlocked.CompareExchange(ref this._state, CLOSED, SENDING) == SENDING)
                                 {
                                     spin = false;
+                                    beforeState = SENDING;
                                 }
                                 break;
-                            case CLOSED:
-                                return null;
-                            case DEQUEUE:
                             case ENQUEUE:
+                            case DEQUEUE:
                                 Thread.Yield();
                                 break;
+                            case CLOSED:
+                                return new CloseResult(CLOSED, null);
                         }
                     }
 
@@ -727,12 +796,13 @@ namespace Sodao.FastSocket.SocketBase
                     this._queue.Clear();
                     this._queue = null;
                     this._sendAction = null;
-                    return arrPackets;
+                    return new CloseResult(beforeState, arrPackets);
                 }
                 /// <summary>
                 /// try send next packet
                 /// </summary>
-                public void TrySendNext()
+                /// <returns>if CLOSED return false.</returns>
+                public bool TrySendNext()
                 {
                     var spin = true;
                     Packet packet = null;
@@ -746,7 +816,7 @@ namespace Sodao.FastSocket.SocketBase
                                     if (this._queue.Count == 0)
                                     {
                                         this._state = IDLE;
-                                        return;
+                                        return true;
                                     }
 
                                     packet = this._queue.Dequeue();
@@ -758,10 +828,39 @@ namespace Sodao.FastSocket.SocketBase
                                 Thread.Yield();
                                 break;
                             case CLOSED:
-                                return;
+                                return false;
                         }
                     }
                     this._sendAction(packet);
+                    return true;
+                }
+                #endregion
+
+                #region CloseResult
+                /// <summary>
+                /// close queue result
+                /// </summary>
+                public sealed class CloseResult
+                {
+                    /// <summary>
+                    /// before close state
+                    /// </summary>
+                    public readonly int BeforeState;
+                    /// <summary>
+                    /// wait sending packet array
+                    /// </summary>
+                    public readonly Packet[] Packets;
+
+                    /// <summary>
+                    /// new
+                    /// </summary>
+                    /// <param name="beforeState"></param>
+                    /// <param name="packets"></param>
+                    public CloseResult(int beforeState, Packet[] packets)
+                    {
+                        this.BeforeState = beforeState;
+                        this.Packets = packets;
+                    }
                 }
                 #endregion
             }

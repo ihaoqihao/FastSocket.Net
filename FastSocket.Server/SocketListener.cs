@@ -12,7 +12,7 @@ namespace Sodao.FastSocket.Server
     {
         #region Private Members
         private readonly SocketBase.IHost _host = null;
-        private const int BACKLOG = 100;
+        private const int BACKLOG = 500;
         private Socket _socket = null;
         private readonly SocketAsyncEventArgs _ae = null;
         #endregion
@@ -21,24 +21,20 @@ namespace Sodao.FastSocket.Server
         /// <summary>
         /// new
         /// </summary>
-        /// <param name="name"></param>
         /// <param name="endPoint"></param>
         /// <param name="host"></param>
-        /// <exception cref="ArgumentNullException">name is null or empty</exception>
         /// <exception cref="ArgumentNullException">endPoint is null</exception>
         /// <exception cref="ArgumentNullException">host is null</exception>
-        public SocketListener(string name, IPEndPoint endPoint, SocketBase.IHost host)
+        public SocketListener(IPEndPoint endPoint, SocketBase.IHost host)
         {
-            if (string.IsNullOrEmpty(name)) throw new ArgumentNullException("name");
             if (endPoint == null) throw new ArgumentNullException("endPoint");
             if (host == null) throw new ArgumentNullException("host");
 
-            this.Name = name;
             this.EndPoint = endPoint;
             this._host = host;
 
             this._ae = new SocketAsyncEventArgs();
-            this._ae.Completed += new EventHandler<SocketAsyncEventArgs>(this.AcceptAsyncCompleted);
+            this._ae.Completed += this.AcceptCompleted;
         }
         #endregion
 
@@ -48,21 +44,9 @@ namespace Sodao.FastSocket.Server
         /// </summary>
         public event Action<ISocketListener, SocketBase.IConnection> Accepted;
         /// <summary>
-        /// get listener name
-        /// </summary>
-        public string Name
-        {
-            get;
-            private set;
-        }
-        /// <summary>
         /// get listener endPoint
         /// </summary>
-        public EndPoint EndPoint
-        {
-            get;
-            private set;
-        }
+        public EndPoint EndPoint { get; private set; }
         /// <summary>
         /// start
         /// </summary>
@@ -99,31 +83,30 @@ namespace Sodao.FastSocket.Server
         {
             if (socket == null) return;
 
-            bool asyncCompleted = true;
-            try { asyncCompleted = this._socket.AcceptAsync(this._ae); }
+            bool completed = true;
+            try { completed = this._socket.AcceptAsync(this._ae); }
             catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
 
-            if (!asyncCompleted)
-                ThreadPool.QueueUserWorkItem(_ => this.AcceptAsyncCompleted(this, this._ae));
+            if (!completed) ThreadPool.QueueUserWorkItem(_ => this.AcceptCompleted(this, this._ae));
         }
         /// <summary>
         /// async accept socket completed handle.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void AcceptAsyncCompleted(object sender, SocketAsyncEventArgs e)
+        private void AcceptCompleted(object sender, SocketAsyncEventArgs e)
         {
-            Socket acceptedSocket = null;
-            if (e.SocketError == SocketError.Success) acceptedSocket = e.AcceptSocket;
+            Socket accepted = null;
+            if (e.SocketError == SocketError.Success) accepted = e.AcceptSocket;
             e.AcceptSocket = null;
 
-            if (acceptedSocket != null)
+            if (accepted != null)
             {
-                acceptedSocket.NoDelay = true;
-                acceptedSocket.ReceiveBufferSize = this._host.SocketBufferSize;
-                acceptedSocket.SendBufferSize = this._host.SocketBufferSize;
-                acceptedSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-                this.Accepted(this, this._host.NewConnection(acceptedSocket));
+                accepted.NoDelay = true;
+                accepted.ReceiveBufferSize = this._host.SocketBufferSize;
+                accepted.SendBufferSize = this._host.SocketBufferSize;
+                accepted.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+                this.Accepted(this, this._host.NewConnection(accepted));
             }
 
             //continue to accept!

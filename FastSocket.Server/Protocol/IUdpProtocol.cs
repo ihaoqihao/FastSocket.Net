@@ -3,16 +3,16 @@
 namespace Sodao.FastSocket.Server.Protocol
 {
     /// <summary>
-    /// a upd protocol
+    /// upd protocol
     /// </summary>
-    /// <typeparam name="TCommandInfo"></typeparam>
-    public interface IUdpProtocol<TCommandInfo> where TCommandInfo : Command.ICommandInfo
+    /// <typeparam name="TMessage"></typeparam>
+    public interface IUdpProtocol<TMessage> where TMessage : class, Messaging.IMessage
     {
         /// <summary>
-        /// find command info
+        /// parse protocol message
         /// </summary>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        TCommandInfo FindCommandInfo(ArraySegment<byte> buffer);
+        TMessage Parse(ArraySegment<byte> buffer);
     }
 }

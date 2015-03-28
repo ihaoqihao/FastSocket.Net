@@ -14,6 +14,9 @@ namespace Sodao.FastSocket.SocketBase
     /// </summary>
     public sealed class MessageReceivedEventArgs
     {
+        /// <summary>
+        /// process callback
+        /// </summary>
         private readonly MessageProcessHandler _processCallback = null;
         /// <summary>
         /// Buffer

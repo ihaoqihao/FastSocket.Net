@@ -1,10 +1,11 @@
-﻿
+﻿using System;
+
 namespace Sodao.FastSocket.Client.Protocol
 {
     /// <summary>
     /// bad protocol exception
     /// </summary>
-    public sealed class BadProtocolException : System.ApplicationException
+    public sealed class BadProtocolException : ApplicationException
     {
         /// <summary>
         /// new

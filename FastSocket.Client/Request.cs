@@ -5,22 +5,18 @@ namespace Sodao.FastSocket.Client
     /// <summary>
     /// request
     /// </summary>
-    /// <typeparam name="TResponse"></typeparam>
-    public class Request<TResponse> : SocketBase.Packet where TResponse : Response.IResponse
+    /// <typeparam name="TMessage"></typeparam>
+    public class Request<TMessage> : SocketBase.Packet where TMessage : Messaging.IMessage
     {
         #region Members
         /// <summary>
-        /// 一致性哈希标识code
+        /// seqId
         /// </summary>
-        public readonly byte[] ConsistentKey = null;
+        public readonly int SeqId;
         /// <summary>
-        /// seqID
+        /// get request name.
         /// </summary>
-        public readonly int SeqID;
-        /// <summary>
-        /// get command name.
-        /// </summary>
-        public readonly string CmdName;
+        public readonly string Name;
         /// <summary>
         /// get or set receive time out
         /// </summary>
@@ -33,45 +29,30 @@ namespace Sodao.FastSocket.Client
         /// <summary>
         /// 结果回调
         /// </summary>
-        private readonly Action<TResponse> _onResult = null;
+        private readonly Action<TMessage> _onResult = null;
         #endregion
 
         #region Constructors
         /// <summary>
         /// new
         /// </summary>
-        /// <param name="seqID">seqID</param>
-        /// <param name="cmdName">command name</param>
-        /// <param name="payload">发送内容</param>
-        /// <param name="millisecondsReceiveTimeout"></param>
-        /// <param name="onException">异常回调</param>
-        /// <param name="onResult">结果回调</param>
-        public Request(int seqID, string cmdName, byte[] payload, int millisecondsReceiveTimeout, Action<Exception> onException, Action<TResponse> onResult)
-            : this(null, seqID, cmdName, payload, millisecondsReceiveTimeout, onException, onResult)
-        {
-        }
-        /// <summary>
-        /// new
-        /// </summary>
-        /// <param name="consistentKey">一致性哈希标识code, 可为null</param>
-        /// <param name="seqID">seqID</param>
-        /// <param name="cmdName">command name</param>
+        /// <param name="seqId">seqID</param>
+        /// <param name="name">command name</param>
         /// <param name="payload">发送内容</param>
         /// <param name="millisecondsReceiveTimeout"></param>
         /// <param name="onException">异常回调</param>
         /// <param name="onResult">结果回调</param>
         /// <exception cref="ArgumentNullException">onException is null</exception>
         /// <exception cref="ArgumentNullException">onResult is null</exception>
-        public Request(byte[] consistentKey, int seqID, string cmdName, byte[] payload, int millisecondsReceiveTimeout,
-            Action<Exception> onException, Action<TResponse> onResult)
+        public Request(int seqId, string name, byte[] payload, int millisecondsReceiveTimeout,
+            Action<Exception> onException, Action<TMessage> onResult)
             : base(payload)
         {
             if (onException == null) throw new ArgumentNullException("onException");
             if (onResult == null) throw new ArgumentNullException("onResult");
 
-            this.ConsistentKey = consistentKey;
-            this.SeqID = seqID;
-            this.CmdName = cmdName;
+            this.SeqId = seqId;
+            this.Name = name;
             this.MillisecondsReceiveTimeout = millisecondsReceiveTimeout;
             this._onException = onException;
             this._onResult = onResult;
@@ -106,7 +87,7 @@ namespace Sodao.FastSocket.Client
         /// </summary>
         /// <param name="response"></param>
         /// <returns></returns>
-        public bool SetResult(TResponse response)
+        public bool SetResult(TMessage response)
         {
             this._onResult(response);
             return true;

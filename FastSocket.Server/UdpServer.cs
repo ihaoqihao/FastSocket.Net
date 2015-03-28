@@ -9,8 +9,8 @@ namespace Sodao.FastSocket.Server
     /// <summary>
     /// upd server
     /// </summary>
-    /// <typeparam name="TCommandInfo"></typeparam>
-    public sealed class UdpServer<TCommandInfo> : IUdpServer<TCommandInfo> where TCommandInfo : class, Command.ICommandInfo
+    /// <typeparam name="TMessage"></typeparam>
+    public sealed class UdpServer<TMessage> : IUdpServer<TMessage> where TMessage : class, Messaging.IMessage
     {
         #region Private Members
         private readonly int _port;
@@ -19,8 +19,8 @@ namespace Sodao.FastSocket.Server
         private Socket _socket = null;
         private AsyncSendPool _pool = null;
 
-        private readonly Protocol.IUdpProtocol<TCommandInfo> _protocol = null;
-        private readonly AbsUdpService<TCommandInfo> _service = null;
+        private readonly Protocol.IUdpProtocol<TMessage> _protocol = null;
+        private readonly IUdpService<TMessage> _service = null;
         #endregion
 
         #region Constructors
@@ -30,8 +30,8 @@ namespace Sodao.FastSocket.Server
         /// <param name="port"></param>
         /// <param name="protocol"></param>
         /// <param name="service"></param>
-        public UdpServer(int port, Protocol.IUdpProtocol<TCommandInfo> protocol,
-            AbsUdpService<TCommandInfo> service)
+        public UdpServer(int port, Protocol.IUdpProtocol<TMessage> protocol,
+            IUdpService<TMessage> service)
             : this(port, 2048, protocol, service)
         {
         }
@@ -45,8 +45,8 @@ namespace Sodao.FastSocket.Server
         /// <exception cref="ArgumentNullException">protocol is null.</exception>
         /// <exception cref="ArgumentNullException">service is null.</exception>
         public UdpServer(int port, int messageBufferSize,
-            Protocol.IUdpProtocol<TCommandInfo> protocol,
-            AbsUdpService<TCommandInfo> service)
+            Protocol.IUdpProtocol<TMessage> protocol,
+            IUdpService<TMessage> service)
         {
             if (protocol == null) throw new ArgumentNullException("protocol");
             if (service == null) throw new ArgumentNullException("service");
@@ -77,13 +77,19 @@ namespace Sodao.FastSocket.Server
         {
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                TCommandInfo cmdInfo = null;
-                try { cmdInfo = this._protocol.FindCommandInfo(new ArraySegment<byte>(e.Buffer, 0, e.BytesTransferred)); }
-                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+                var session = new UdpSession(e.RemoteEndPoint, this);
+                TMessage message = null;
+                try { message = this._protocol.Parse(new ArraySegment<byte>(e.Buffer, 0, e.BytesTransferred)); }
+                catch (Exception ex)
+                {
+                    SocketBase.Log.Trace.Error(ex.Message, ex);
+                    this._service.OnError(session, ex);
+                }
 
-                if (cmdInfo != null)
-                    this._service.OnReceived(new UdpSession(e.RemoteEndPoint, this), cmdInfo);
+                if (message != null) this._service.OnReceived(session, message);
             }
+
+            //receive again
             this.BeginReceive(e);
         }
         #endregion
@@ -104,7 +110,7 @@ namespace Sodao.FastSocket.Server
             var e = new SocketAsyncEventArgs();
             e.RemoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
             e.SetBuffer(new byte[this._messageBufferSize], 0, this._messageBufferSize);
-            e.Completed += new EventHandler<SocketAsyncEventArgs>(this.ReceiveCompleted);
+            e.Completed += this.ReceiveCompleted;
             this.BeginReceive(e);
         }
         /// <summary>
@@ -136,7 +142,8 @@ namespace Sodao.FastSocket.Server
             private const int MAXPOOLSIZE = 3000;
             private readonly int _messageBufferSize;
             private readonly Socket _socket = null;
-            private readonly ConcurrentStack<SocketAsyncEventArgs> _stack = new ConcurrentStack<SocketAsyncEventArgs>();
+            private readonly ConcurrentStack<SocketAsyncEventArgs> _stack =
+                new ConcurrentStack<SocketAsyncEventArgs>();
             #endregion
 
             #region Constructors
@@ -161,34 +168,34 @@ namespace Sodao.FastSocket.Server
             /// <param name="e"></param>
             private void SendCompleted(object sender, SocketAsyncEventArgs e)
             {
-                this.ReleaseSocketAsyncEventArgs(e);
+                this.Release(e);
             }
             #endregion
 
             #region Public Methods
             /// <summary>
-            /// get
+            /// acquire
             /// </summary>
             /// <returns></returns>
-            public SocketAsyncEventArgs GetSocketAsyncEventArgs()
+            public SocketAsyncEventArgs Acquire()
             {
                 SocketAsyncEventArgs e;
                 if (this._stack.TryPop(out e)) return e;
 
                 e = new SocketAsyncEventArgs();
                 e.SetBuffer(new byte[this._messageBufferSize], 0, this._messageBufferSize);
-                e.Completed += new EventHandler<SocketAsyncEventArgs>(this.SendCompleted);
+                e.Completed += this.SendCompleted;
                 return e;
             }
             /// <summary>
             /// release
             /// </summary>
             /// <param name="e"></param>
-            public void ReleaseSocketAsyncEventArgs(SocketAsyncEventArgs e)
+            public void Release(SocketAsyncEventArgs e)
             {
                 if (this._stack.Count >= MAXPOOLSIZE)
                 {
-                    e.Completed -= new EventHandler<SocketAsyncEventArgs>(this.SendCompleted);
+                    e.Completed -= this.SendCompleted;
                     e.Dispose();
                     return;
                 }
@@ -207,16 +214,17 @@ namespace Sodao.FastSocket.Server
             {
                 if (endPoint == null) throw new ArgumentNullException("endPoint");
                 if (payload == null || payload.Length == 0) throw new ArgumentNullException("payload");
-                if (payload.Length > this._messageBufferSize) throw new ArgumentOutOfRangeException("payload.Length", "payload length大于messageBufferSize");
+                if (payload.Length > this._messageBufferSize)
+                    throw new ArgumentOutOfRangeException("payload.Length", "payload length大于messageBufferSize");
 
-                var e = this.GetSocketAsyncEventArgs();
+                var e = this.Acquire();
                 e.RemoteEndPoint = endPoint;
 
                 Buffer.BlockCopy(payload, 0, e.Buffer, 0, payload.Length);
                 e.SetBuffer(0, payload.Length);
 
                 if (!this._socket.SendToAsync(e))
-                    ThreadPool.QueueUserWorkItem(_ => this.ReleaseSocketAsyncEventArgs(e));
+                    ThreadPool.QueueUserWorkItem(_ => this.Release(e));
             }
             #endregion
         }

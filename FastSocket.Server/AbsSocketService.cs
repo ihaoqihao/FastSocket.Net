@@ -5,8 +5,9 @@ namespace Sodao.FastSocket.Server
     /// <summary>
     /// abstract socket service interface.
     /// </summary>
-    /// <typeparam name="TCommandInfo"></typeparam>
-    public abstract class AbsSocketService<TCommandInfo> where TCommandInfo : class, Command.ICommandInfo
+    /// <typeparam name="TMessage"></typeparam>
+    public abstract class AbsSocketService<TMessage> : ISocketService<TMessage>
+        where TMessage : class, Messaging.IMessage
     {
         /// <summary>
         /// 当建立socket连接时，会调用此方法
@@ -28,8 +29,8 @@ namespace Sodao.FastSocket.Server
         /// 当接收到客户端新消息时，会调用此方法.
         /// </summary>
         /// <param name="connection"></param>
-        /// <param name="cmdInfo"></param>
-        public virtual void OnReceived(SocketBase.IConnection connection, TCommandInfo cmdInfo)
+        /// <param name="message"></param>
+        public virtual void OnReceived(SocketBase.IConnection connection, TMessage message)
         {
         }
         /// <summary>
