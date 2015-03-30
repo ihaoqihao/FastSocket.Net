@@ -119,7 +119,7 @@ namespace Sodao.FastSocket.Client
         /// remote server to array
         /// </summary>
         /// <returns></returns>
-        public KeyValuePair<string, EndPoint>[] ToArrayRegisteredServer()
+        public KeyValuePair<string, EndPoint>[] RegisteredServerToArray()
         {
             return this._serverPool.ToArray();
         }
@@ -138,10 +138,10 @@ namespace Sodao.FastSocket.Client
             connection.BeginSend(request);
         }
         /// <summary>
-        /// 产生不重复的seqID
+        /// 产生不重复的seqId
         /// </summary>
         /// <returns></returns>
-        public int NextRequestSeqID()
+        public int NextRequestSeqId()
         {
             return Interlocked.Increment(ref this._seqId) & 0x7fffffff;
         }
@@ -160,7 +160,7 @@ namespace Sodao.FastSocket.Client
             Action<Exception> onException,
             Action<TMessage> onResult)
         {
-            return new Request<TMessage>(this.NextRequestSeqID(),
+            return new Request<TMessage>(this.NextRequestSeqId(),
                 name,
                 payload,
                 millisecondsReceiveTimeout,
