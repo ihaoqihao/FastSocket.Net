@@ -10,6 +10,10 @@ namespace Sodao.FastSocket.Client
     {
         #region Members
         /// <summary>
+        /// default is allow retry send.
+        /// </summary>
+        internal bool AllowRetry = true;
+        /// <summary>
         /// seqId
         /// </summary>
         public readonly int SeqId;

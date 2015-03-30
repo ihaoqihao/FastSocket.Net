@@ -40,10 +40,10 @@ namespace Sodao.FastSocket.Client.Protocol
             var cmdLen = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset + 8);
             if (messageLength < cmdLen + 13) throw new BadProtocolException("bad thrift protocol");
 
-            int seqID = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset + 12 + cmdLen);
+            int seqId = SocketBase.Utils.NetworkBitConverter.ToInt32(buffer.Array, buffer.Offset + 12 + cmdLen);
             var data = new byte[messageLength];
             Buffer.BlockCopy(buffer.Array, buffer.Offset + 4, data, 0, messageLength);
-            return new Messaging.ThriftMessage(seqID, data);
+            return new Messaging.ThriftMessage(seqId, data);
         }
     }
 }

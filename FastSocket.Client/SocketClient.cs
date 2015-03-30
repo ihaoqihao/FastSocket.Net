@@ -35,7 +35,7 @@ namespace Sodao.FastSocket.Client
         private readonly PendingSendQueue _pendingQueue = null;
         private readonly ReceivingQueue _receivingQueue = null;
 
-        private readonly SocketConnector _connector = null;
+        private readonly RemoteServerPool _serverPool = null;
         #endregion
 
         #region Constructors
@@ -72,7 +72,7 @@ namespace Sodao.FastSocket.Client
             this._pendingQueue = new PendingSendQueue(this);
             this._receivingQueue = new ReceivingQueue();
 
-            this._connector = new SocketConnector(this);
+            this._serverPool = new RemoteServerPool(this);
         }
         #endregion
 
@@ -90,6 +90,82 @@ namespace Sodao.FastSocket.Client
         public int MillisecondsReceiveTimeout
         {
             get { return this._millisecondsReceiveTimeout; }
+        }
+        #endregion
+
+        #region Public Methods
+        /// <summary>
+        /// try register remote server
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="remoteEP"></param>
+        /// <param name="initFunc"></param>
+        /// <returns></returns>
+        public bool TryRegisterRemoteServer(string name, EndPoint remoteEP,
+            Func<SendOnceContext, Task> initFunc = null)
+        {
+            return this._serverPool.TryRegister(name, remoteEP, initFunc);
+        }
+        /// <summary>
+        /// un register remote server
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public bool UnRegisterRemoteServer(string name)
+        {
+            return this._serverPool.UnRegister(name);
+        }
+        /// <summary>
+        /// remote server to array
+        /// </summary>
+        /// <returns></returns>
+        public KeyValuePair<string, EndPoint>[] ToArrayRegisteredServer()
+        {
+            return this._serverPool.ToArray();
+        }
+        /// <summary>
+        /// send request
+        /// </summary>
+        /// <param name="request"></param>
+        public void Send(Request<TMessage> request)
+        {
+            IConnection connection = null;
+            if (!this._serverPool.TryAcquire(out connection))
+            {
+                this._pendingQueue.Enqueue(request);
+                return;
+            }
+            connection.BeginSend(request);
+        }
+        /// <summary>
+        /// 产生不重复的seqID
+        /// </summary>
+        /// <returns></returns>
+        public int NextRequestSeqID()
+        {
+            return Interlocked.Increment(ref this._seqId) & 0x7fffffff;
+        }
+        /// <summary>
+        /// new request
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="payload"></param>
+        /// <param name="millisecondsReceiveTimeout"></param>
+        /// <param name="onException"></param>
+        /// <param name="onResult"></param>
+        /// <returns></returns>
+        public Request<TMessage> NewRequest(string name,
+            byte[] payload,
+            int millisecondsReceiveTimeout,
+            Action<Exception> onException,
+            Action<TMessage> onResult)
+        {
+            return new Request<TMessage>(this.NextRequestSeqID(),
+                name,
+                payload,
+                millisecondsReceiveTimeout,
+                onException,
+                onResult);
         }
         #endregion
 
@@ -193,57 +269,43 @@ namespace Sodao.FastSocket.Client
         }
         #endregion
 
-        #region Public Methods
         /// <summary>
-        /// try register remote server
+        /// send once context
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="remoteEP"></param>
-        /// <returns></returns>
-        public bool TryRegisterRemoteServer(string name, EndPoint remoteEP)
+        public sealed class SendOnceContext
         {
-            return this._connector.TryRegister(name, remoteEP);
-        }
-        /// <summary>
-        /// un register remote server
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public bool UnRegisterRemoteServer(string name)
-        {
-            return this._connector.UnRegister(name);
-        }
-        /// <summary>
-        /// remote server to array
-        /// </summary>
-        /// <returns></returns>
-        public KeyValuePair<string, EndPoint>[] ToArrayRegisteredServer()
-        {
-            return this._connector.ToArray();
-        }
-        /// <summary>
-        /// send request
-        /// </summary>
-        /// <param name="request"></param>
-        public void Send(Request<TMessage> request)
-        {
-            IConnection connection = null;
-            if (!this._connector.TryAcquire(out connection))
+            #region Members
+            private readonly IConnection _connection = null;
+            #endregion
+
+            #region Constructors
+            /// <summary>
+            /// new
+            /// </summary>
+            /// <param name="connection"></param>
+            /// <exception cref="ArgumentNullException">connection is null.</exception>
+            public SendOnceContext(IConnection connection)
             {
-                this._pendingQueue.Enqueue(request);
-                return;
+                if (connection == null) throw new ArgumentNullException("connection");
+                this._connection = connection;
             }
-            connection.BeginSend(request);
+            #endregion
+
+            #region Public Methods
+            /// <summary>
+            /// send
+            /// </summary>
+            /// <param name="request"></param>
+            /// <exception cref="ArgumentNullException">request is null.</exception>
+            public void Send(Request<TMessage> request)
+            {
+                if (request == null) throw new ArgumentNullException("request");
+
+                request.AllowRetry = false;
+                this._connection.BeginSend(request);
+            }
+            #endregion
         }
-        /// <summary>
-        /// 产生不重复的seqID
-        /// </summary>
-        /// <returns></returns>
-        public int NextRequestSeqID()
-        {
-            return Interlocked.Increment(ref this._seqId) & 0x7fffffff;
-        }
-        #endregion
 
         /// <summary>
         /// send queue
@@ -384,9 +446,9 @@ namespace Sodao.FastSocket.Client
         }
 
         /// <summary>
-        /// socket connector
+        /// remote server pool
         /// </summary>
-        private class SocketConnector
+        private class RemoteServerPool
         {
             #region Members
             /// <summary>
@@ -394,19 +456,18 @@ namespace Sodao.FastSocket.Client
             /// </summary>
             private readonly SocketClient<TMessage> _client = null;
             /// <summary>
-            /// key:name
+            /// key:nodeId
             /// </summary>
-            private readonly Dictionary<string, EndPoint> _dicRemote =
-                new Dictionary<string, EndPoint>();
+            private readonly Dictionary<int, Node> _dicNode = new Dictionary<int, Node>();
             /// <summary>
-            /// key:node name
+            /// key:nodeId
             /// </summary>
-            private readonly Dictionary<string, IConnection> _dicConnections =
-                new Dictionary<string, IConnection>();
+            private readonly Dictionary<int, IConnection> _dicConn = new Dictionary<int, IConnection>();
+
             /// <summary>
             /// <see cref="IConnection"/> array.
             /// </summary>
-            private IConnection[] _arrConnections = null;
+            private IConnection[] _arrConn = null;
             /// <summary>
             /// acquire <see cref="IConnection"/> number
             /// </summary>
@@ -419,7 +480,7 @@ namespace Sodao.FastSocket.Client
             /// </summary>
             /// <param name="client"></param>
             /// <exception cref="ArgumentNullException">host is null</exception>
-            public SocketConnector(SocketClient<TMessage> client)
+            public RemoteServerPool(SocketClient<TMessage> client)
             {
                 if (client == null) throw new ArgumentNullException("client");
                 this._client = client;
@@ -432,21 +493,18 @@ namespace Sodao.FastSocket.Client
             /// </summary>
             /// <param name="name"></param>
             /// <param name="remoteEP"></param>
+            /// <param name="initFunc"></param>
             /// <returns></returns>
-            /// <exception cref="ArgumentNullException">name is null or empty</exception>
-            /// <exception cref="ArgumentNullException">remoteEP is null</exception>
-            public bool TryRegister(string name, EndPoint remoteEP)
+            public bool TryRegister(string name, EndPoint remoteEP, Func<SendOnceContext, Task> initFunc)
             {
-                if (string.IsNullOrEmpty(name)) throw new ArgumentNullException("name");
-                if (remoteEP == null) throw new ArgumentNullException("remoteEP");
-
+                var node = new Node(name, remoteEP, initFunc);
                 lock (this)
                 {
-                    if (this._dicRemote.ContainsKey(name)) return false;
-                    this._dicRemote[name] = remoteEP;
+                    if (this._dicNode.Values.FirstOrDefault(c => c.Name == name) != null) return false;
+                    this._dicNode[node.Id] = node;
                 }
 
-                this.Connect(name, remoteEP);
+                this.Connect(node);
                 return true;
             }
             /// <summary>
@@ -459,15 +517,18 @@ namespace Sodao.FastSocket.Client
             {
                 if (string.IsNullOrEmpty(name)) throw new ArgumentNullException("name");
 
+                IConnection connection = null;
                 lock (this)
                 {
-                    if (!this._dicRemote.Remove(name)) return false;
+                    var node = this._dicNode.Values.FirstOrDefault(c => c.Name == name);
+                    if (node == null) return false;
 
-                    IConnection connection;
-                    if (!this._dicConnections.TryGetValue(name, out connection)) return true;
-                    connection.BeginDisconnect();
-                    return true;
+                    this._dicNode.Remove(node.Id);
+                    this._dicConn.TryGetValue(node.Id, out connection);
                 }
+
+                if (connection != null) connection.BeginDisconnect();
+                return true;
             }
             /// <summary>
             /// try acquire
@@ -476,7 +537,7 @@ namespace Sodao.FastSocket.Client
             /// <returns></returns>
             public bool TryAcquire(out IConnection connection)
             {
-                var arr = this._arrConnections;
+                var arr = this._arrConn;
                 if (arr == null || arr.Length == 0)
                 {
                     connection = null;
@@ -493,7 +554,12 @@ namespace Sodao.FastSocket.Client
             /// <returns></returns>
             public KeyValuePair<string, EndPoint>[] ToArray()
             {
-                lock (this) return this._dicRemote.ToArray();
+                lock (this)
+                {
+                    return this._dicNode.Values
+                        .Select(c => new KeyValuePair<string, EndPoint>(c.Name, c.RemoteEP))
+                        .ToArray();
+                }
             }
             #endregion
 
@@ -501,104 +567,144 @@ namespace Sodao.FastSocket.Client
             /// <summary>
             /// connect
             /// </summary>
-            /// <param name="name"></param>
-            /// <param name="remoteEP"></param>
-            private void Connect(string name, EndPoint remoteEP)
+            /// <param name="node"></param>
+            private void Connect(Node node)
             {
-                Connect(remoteEP, this._client).ContinueWith(c =>
-                {
-                    if (c.IsFaulted)
-                    {
-                        //after 2000~5000ms retry connect
-                        TaskEx.Delay(new Random().Next(2000, 5000))
-                            .ContinueWith(_ => this.Connect(name, remoteEP)); return;
-                    }
-
-                    lock (this)
-                    {
-                        if (!this._dicRemote.ContainsKey(name))
-                        {
-                            c.Result.BeginDisconnect(); return;
-                        }
-
-                        var connection = c.Result;
-                        connection.Disconnected += (conn, ex) =>
-                        {
-                            lock (this)
-                            {
-                                if (this._dicConnections.Remove(name))
-                                    this._arrConnections = this._dicConnections.Values.ToArray();
-                            }
-                            //after 100~1500ms retry connect
-                            TaskEx.Delay(new Random().Next(100, 1500))
-                                .ContinueWith(_ => this.Connect(name, remoteEP));
-                        };
-
-                        this._client.RegisterConnection(connection);
-                        this._dicConnections[name] = connection;
-                        this._arrConnections = this._dicConnections.Values.ToArray();
-                    }
-                });
+                SocketConnector.Connect(node.RemoteEP)
+                    .ContinueWith(task => this.ConnectCallback(node, task));
             }
             /// <summary>
-            /// begin connect
+            /// connect callback
             /// </summary>
-            /// <param name="endPoint"></param>
-            /// <param name="host"></param>
-            /// <exception cref="ArgumentNullException">endPoint is null</exception>
-            /// <exception cref="ArgumentNullException">host is null</exception>
-            static private Task<IConnection> Connect(EndPoint endPoint, IHost host)
+            /// <param name="node"></param>
+            /// <param name="task"></param>
+            private void ConnectCallback(Node node, Task<Socket> task)
             {
-                if (endPoint == null) throw new ArgumentNullException("endPoint");
-                if (host == null) throw new ArgumentNullException("host");
+                bool isActive;
+                lock (this) isActive = this._dicNode.ContainsKey(node.Id);
 
-                var source = new TaskCompletionSource<IConnection>();
-                var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-                var e = new SocketAsyncEventArgs();
-                e.UserToken = new Tuple<TaskCompletionSource<IConnection>, IHost, Socket>(source, host, socket);
-                e.RemoteEndPoint = endPoint;
-                e.Completed += ConnectCompleted;
-
-                bool completed = true;
-                try { completed = socket.ConnectAsync(e); }
-                catch (Exception ex) { source.TrySetException(ex); }
-                if (!completed) ThreadPool.QueueUserWorkItem(_ => ConnectCompleted(null, e));
-
-                return source.Task;
-            }
-            /// <summary>
-            /// connect completed
-            /// </summary>
-            /// <param name="sender"></param>
-            /// <param name="e"></param>
-            static private void ConnectCompleted(object sender, SocketAsyncEventArgs e)
-            {
-                var t = e.UserToken as Tuple<TaskCompletionSource<IConnection>, IHost, Socket>;
-                var source = t.Item1;
-                var host = t.Item2;
-                var socket = t.Item3;
-                var error = e.SocketError;
-
-                e.UserToken = null;
-                e.Completed -= ConnectCompleted;
-                e.Dispose();
-
-                if (error != SocketError.Success)
+                if (task.IsFaulted)
                 {
-                    socket.Close();
-                    source.TrySetException(new SocketException((int)error));
+                    //after 1000~3000ms retry connect
+                    if (isActive) TaskEx.Delay(new Random().Next(1000, 3000))
+                        .ContinueWith(_ => this.Connect(node));
+                    return;
+                }
+
+                var socket = task.Result;
+                if (!isActive)
+                {
+                    try { socket.Close(); }
+                    catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
                     return;
                 }
 
                 socket.NoDelay = true;
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-                socket.ReceiveBufferSize = host.SocketBufferSize;
-                socket.SendBufferSize = host.SocketBufferSize;
+                socket.ReceiveBufferSize = this._client.SocketBufferSize;
+                socket.SendBufferSize = this._client.SocketBufferSize;
+                var connection = this._client.NewConnection(socket);
 
-                source.TrySetResult(host.NewConnection(socket));
+                connection.Disconnected += (conn, ex) =>
+                {
+                    bool isExists;
+                    lock (this)
+                    {
+                        isExists = this._dicNode.ContainsKey(node.Id);
+                        this._dicConn.Remove(node.Id);
+                        this._arrConn = this._dicConn.Values.ToArray();
+                    }
+
+                    //after 100~1500ms retry connect
+                    if (isExists)
+                        TaskEx.Delay(new Random().Next(100, 1500)).ContinueWith(_ => this.Connect(node));
+                };
+                this._client.RegisterConnection(connection);
+
+                if (node.InitFunc == null)
+                {
+                    lock (this)
+                    {
+                        if (this._dicNode.ContainsKey(node.Id))
+                        {
+                            this._dicConn[node.Id] = connection;
+                            this._arrConn = this._dicConn.Values.ToArray();
+                            return;
+                        }
+                    }
+                    connection.BeginDisconnect();
+                    return;
+                }
+
+                node.InitFunc(new SendOnceContext(connection)).ContinueWith(c =>
+                {
+                    if (c.IsFaulted)
+                    {
+                        connection.BeginDisconnect(c.Exception.InnerException);
+                        return;
+                    }
+
+                    lock (this)
+                    {
+                        if (this._dicNode.ContainsKey(node.Id))
+                        {
+                            this._dicConn[node.Id] = connection;
+                            this._arrConn = this._dicConn.Values.ToArray();
+                            return;
+                        }
+                    }
+                    connection.BeginDisconnect();
+                });
             }
             #endregion
+
+            /// <summary>
+            /// server node
+            /// </summary>
+            private class Node
+            {
+                #region Members
+                static private int NODEID = 0;
+
+                /// <summary>
+                /// id
+                /// </summary>
+                public readonly int Id;
+                /// <summary>
+                /// name
+                /// </summary>
+                public readonly string Name;
+                /// <summary>
+                /// remote endPoint
+                /// </summary>
+                public readonly EndPoint RemoteEP;
+                /// <summary>
+                /// init function
+                /// </summary>
+                public readonly Func<SendOnceContext, Task> InitFunc;
+                #endregion
+
+                #region Constructors
+                /// <summary>
+                /// new
+                /// </summary>
+                /// <param name="name"></param>
+                /// <param name="remoteEP"></param>
+                /// <param name="initFunc"></param>
+                /// <exception cref="ArgumentNullException">name is null or empty</exception>
+                /// <exception cref="ArgumentNullException">remoteEP</exception>
+                public Node(string name, EndPoint remoteEP, Func<SendOnceContext, Task> initFunc)
+                {
+                    if (string.IsNullOrEmpty(name)) throw new ArgumentNullException("name");
+                    if (remoteEP == null) throw new ArgumentNullException("remoteEP");
+
+                    this.Id = Interlocked.Increment(ref NODEID);
+                    this.Name = name;
+                    this.RemoteEP = remoteEP;
+                    this.InitFunc = initFunc;
+                }
+                #endregion
+            }
         }
     }
 }

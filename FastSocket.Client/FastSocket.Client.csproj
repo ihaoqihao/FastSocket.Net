@@ -46,6 +46,7 @@
     <Compile Include="Request.cs" />
     <Compile Include="RequestException.cs" />
     <Compile Include="SocketClient.cs" />
+    <Compile Include="SocketConnector.cs" />
     <Compile Include="ThriftClient.cs">
       <SubType>Code</SubType>
     </Compile>

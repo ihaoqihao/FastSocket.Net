@@ -9,7 +9,7 @@ namespace Sodao.FastSocket.Client.Messaging
         /// <summary>
         /// seqId
         /// </summary>
-        private readonly int _seqID;
+        private readonly int _seqId;
         /// <summary>
         /// payload
         /// </summary>
@@ -18,11 +18,11 @@ namespace Sodao.FastSocket.Client.Messaging
         /// <summary>
         /// new
         /// </summary>
-        /// <param name="seqID"></param>
+        /// <param name="seqId"></param>
         /// <param name="buffer"></param>
-        public ThriftMessage(int seqID, byte[] buffer)
+        public ThriftMessage(int seqId, byte[] buffer)
         {
-            this._seqID = seqID;
+            this._seqId = seqId;
             this.Payload = buffer;
         }
 
@@ -31,7 +31,7 @@ namespace Sodao.FastSocket.Client.Messaging
         /// </summary>
         public int SeqId
         {
-            get { return this._seqID; }
+            get { return this._seqId; }
         }
     }
 }
