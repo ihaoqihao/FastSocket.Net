@@ -44,7 +44,11 @@ namespace Sodao.FastSocket.Client
             /// <summary>
             /// 接收超时
             /// </summary>
-            ReceiveTimeout = 2
+            ReceiveTimeout = 2,
+            /// <summary>
+            /// 发送失败
+            /// </summary>
+            SendFaild = 3,
         }
     }
 }

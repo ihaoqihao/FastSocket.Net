@@ -25,6 +25,7 @@ namespace CommandLine
         {
             base.OnConnected(connection);
             Console.WriteLine(connection.RemoteEndPoint.ToString() + " connected");
+            connection.BeginReceive();
         }
         public override void OnReceived(IConnection connection, CommandLineMessage message)
         {

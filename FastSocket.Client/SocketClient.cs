@@ -215,21 +215,35 @@ namespace Sodao.FastSocket.Client
             var r = packet as Request<TMessage>;
             if (isSuccess)
             {
-                r.SentTime = DateTime.UtcNow; return;
+                r.SentTime = SocketBase.Utils.Date.UtcNow;
+                return;
             }
 
             this._receivingQueue.TryRemove(r.SeqId);
-            if (DateTime.UtcNow.Subtract(r.CreatedTime).TotalMilliseconds < this._millisecondsSendTimeout)
+
+            if (!r.AllowRetry)
             {
-                this.Send(r); return;
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try { r.SetException(new RequestException(RequestException.Errors.SendFaild, r.Name)); }
+                    catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+                });
+                return;
             }
 
-            //send time out
-            ThreadPool.QueueUserWorkItem(_ =>
+            if (DateTime.UtcNow.Subtract(r.CreatedTime).TotalMilliseconds > this._millisecondsSendTimeout)
             {
-                try { r.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, r.Name)); }
-                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-            });
+                //send time out
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try { r.SetException(new RequestException(RequestException.Errors.PendingSendTimeout, r.Name)); }
+                    catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+                });
+                return;
+            }
+
+            //retry send
+            this.Send(r);
         }
         /// <summary>
         /// OnMessageReceived
@@ -343,9 +357,9 @@ namespace Sodao.FastSocket.Client
                         Request<TMessage> request;
                         if (!this._queue.TryDequeue(out request)) break;
 
-                        //try send...
                         if (dtNow.Subtract(request.CreatedTime).TotalMilliseconds < timeOut)
                         {
+                            //try send...
                             this._client.Send(request);
                             continue;
                         }
@@ -400,7 +414,7 @@ namespace Sodao.FastSocket.Client
                     this._timer.Change(Timeout.Infinite, Timeout.Infinite);
 
                     var dtNow = SocketBase.Utils.Date.UtcNow;
-                    var arr = this._dic.ToArray().Where(c =>
+                    var arr = this._dic.ToArray().Where(c => c.Value.IsSent() &&
                         dtNow.Subtract(c.Value.SentTime).TotalMilliseconds > c.Value.MillisecondsReceiveTimeout).ToArray();
 
                     for (int i = 0, l = arr.Length; i < l; i++)

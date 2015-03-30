@@ -60,7 +60,6 @@ namespace Sodao.FastSocket.Client
             this.MillisecondsReceiveTimeout = millisecondsReceiveTimeout;
             this._onException = onException;
             this._onResult = onResult;
-            this.SentTime = DateTime.MaxValue;
         }
         #endregion
 
