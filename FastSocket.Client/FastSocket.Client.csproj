@@ -37,6 +37,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IConnectionPool.cs" />
     <Compile Include="Messaging\IMessage.cs" />
     <Compile Include="Messaging\ThriftMessage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
