@@ -284,44 +284,6 @@ namespace Sodao.FastSocket.Client
         #endregion
 
         /// <summary>
-        /// send once context
-        /// </summary>
-        public sealed class SendOnceContext
-        {
-            #region Members
-            private readonly IConnection _connection = null;
-            #endregion
-
-            #region Constructors
-            /// <summary>
-            /// new
-            /// </summary>
-            /// <param name="connection"></param>
-            /// <exception cref="ArgumentNullException">connection is null.</exception>
-            public SendOnceContext(IConnection connection)
-            {
-                if (connection == null) throw new ArgumentNullException("connection");
-                this._connection = connection;
-            }
-            #endregion
-
-            #region Public Methods
-            /// <summary>
-            /// send
-            /// </summary>
-            /// <param name="request"></param>
-            /// <exception cref="ArgumentNullException">request is null.</exception>
-            public void Send(Request<TMessage> request)
-            {
-                if (request == null) throw new ArgumentNullException("request");
-
-                request.AllowRetry = false;
-                this._connection.BeginSend(request);
-            }
-            #endregion
-        }
-
-        /// <summary>
         /// send queue
         /// </summary>
         private class PendingSendQueue
