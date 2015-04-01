@@ -49,7 +49,7 @@ namespace Sodao.FastSocket.SocketBase
         /// <returns>true表示已发送完毕</returns>
         public bool IsSent()
         {
-            return this.SentSize >= this.Payload.Length;
+            return this.SentSize == this.Payload.Length;
         }
         #endregion
     }

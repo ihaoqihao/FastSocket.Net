@@ -10,6 +10,10 @@ namespace Sodao.FastSocket.Client.Protocol
         where TMessage : class, Messaging.IMessage
     {
         /// <summary>
+        /// true此协议为异步协议
+        /// </summary>
+        bool IsAsync { get; }
+        /// <summary>
         /// parse
         /// </summary>
         /// <param name="connection"></param>

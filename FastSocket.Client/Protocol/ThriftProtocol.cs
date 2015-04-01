@@ -9,6 +9,13 @@ namespace Sodao.FastSocket.Client.Protocol
     public sealed class ThriftProtocol : IProtocol<Messaging.ThriftMessage>
     {
         /// <summary>
+        /// true此协议为异步协议
+        /// </summary>
+        public bool IsAsync
+        {
+            get { return true; }
+        }
+        /// <summary>
         /// find response
         /// </summary>
         /// <param name="connection"></param>

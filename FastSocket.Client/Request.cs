@@ -14,6 +14,15 @@ namespace Sodao.FastSocket.Client
         /// </summary>
         internal bool AllowRetry = true;
         /// <summary>
+        /// get or set send connection
+        /// </summary>
+        internal SocketBase.IConnection SendConnection = null;
+        /// <summary>
+        /// get or set sent time, default is DateTime.MaxValue.
+        /// </summary>
+        internal DateTime SentTime = DateTime.MaxValue;
+
+        /// <summary>
         /// seqId
         /// </summary>
         public readonly int SeqId;
@@ -63,20 +72,9 @@ namespace Sodao.FastSocket.Client
         }
         #endregion
 
-        #region Public Properties
-        /// <summary>
-        /// get sent time
-        /// </summary>
-        public DateTime SentTime
-        {
-            get;
-            internal set;
-        }
-        #endregion
-
         #region Public Methods
         /// <summary>
-        /// set Exception
+        /// set exception
         /// </summary>
         /// <param name="ex"></param>
         /// <returns></returns>
@@ -86,7 +84,7 @@ namespace Sodao.FastSocket.Client
             return true;
         }
         /// <summary>
-        /// set Result
+        /// set result
         /// </summary>
         /// <param name="response"></param>
         /// <returns></returns>
