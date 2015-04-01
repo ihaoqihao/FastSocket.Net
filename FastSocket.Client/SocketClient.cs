@@ -16,13 +16,6 @@ namespace Sodao.FastSocket.Client
     public class SocketClient<TMessage> : SocketBase.BaseHost
         where TMessage : class, Messaging.IMessage
     {
-        #region Event
-        /// <summary>
-        /// received unknow message
-        /// </summary>
-        public event Action<SocketBase.IConnection, TMessage> UnknowMessageReceived;
-        #endregion
-
         #region Private Members
         private int _seqId = 0;
         private readonly Protocol.IProtocol<TMessage> _protocol = null;
@@ -75,8 +68,8 @@ namespace Sodao.FastSocket.Client
             this._receivingQueue = new ReceivingQueue(this);
 
             this._endPointManager = new EndPointManager(this);
-            this._endPointManager.NodeConnected += this.EndPoint_Connected;
-            this._endPointManager.NodeAlreadyAvailable += this.EndPoint_AlreadyAvailable;
+            this._endPointManager.Connected += this.OnEndPointConnected;
+            this._endPointManager.Already += this.OnEndPointAlready;
         }
         #endregion
 
@@ -172,37 +165,62 @@ namespace Sodao.FastSocket.Client
         }
         #endregion
 
-        #region Private Methods
+        #region Protected Methods
         /// <summary>
         /// endPoint connected
         /// </summary>
-        /// <param name="node"></param>
+        /// <param name="name"></param>
         /// <param name="connection"></param>
-        private void EndPoint_Connected(Node node, SocketBase.IConnection connection)
+        protected virtual void OnEndPointConnected(string name, SocketBase.IConnection connection)
         {
             this.RegisterConnection(connection);
         }
         /// <summary>
         /// endPoint already available
         /// </summary>
-        /// <param name="node"></param>
+        /// <param name="name"></param>
         /// <param name="connection"></param>
-        private void EndPoint_AlreadyAvailable(Node node, SocketBase.IConnection connection)
+        protected virtual void OnEndPointAlready(string name, SocketBase.IConnection connection)
         {
             this._connectionPool.Register(connection);
         }
-        #endregion
-
-        #region Protected Methods
         /// <summary>
-        /// 处理未知的message
+        /// on received unknow message
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="message"></param>
-        protected virtual void HandleUnknowMessage(SocketBase.IConnection connection, TMessage message)
+        protected virtual void OnReceivedUnknowMessage(SocketBase.IConnection connection, TMessage message)
         {
-            if (this.UnknowMessageReceived != null)
-                this.UnknowMessageReceived(connection, message);
+        }
+        /// <summary>
+        /// on request sent
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="request"></param>
+        protected virtual void OnSent(SocketBase.IConnection connection, Request<TMessage> request)
+        {
+        }
+        /// <summary>
+        /// on request received
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="request"></param>
+        /// <param name="message"></param>
+        protected virtual void OnReceived(SocketBase.IConnection connection,
+            Request<TMessage> request, TMessage message)
+        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { request.SetResult(message); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
+
+            if (!this._protocol.IsAsync)
+            {
+                Request<TMessage> next;
+                if (this._pendingQueue.TryDequeue(out next)) connection.BeginSend(next);
+                else this._connectionPool.Release(connection);
+            }
         }
         /// <summary>
         /// on pending send timeout
@@ -217,6 +235,18 @@ namespace Sodao.FastSocket.Client
             });
         }
         /// <summary>
+        /// on send failed
+        /// </summary>
+        /// <param name="request"></param>
+        protected virtual void OnSendFailed(Request<TMessage> request)
+        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { request.SetException(new RequestException(RequestException.Errors.SendFaild, request.Name)); }
+                catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
+            });
+        }
+        /// <summary>
         /// on receive timeout
         /// </summary>
         /// <param name="request"></param>
@@ -227,6 +257,9 @@ namespace Sodao.FastSocket.Client
                 try { request.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, request.Name)); }
                 catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
             });
+
+            if (!this._protocol.IsAsync)
+                request.SendConnection.BeginDisconnect();
         }
         #endregion
 
@@ -277,6 +310,7 @@ namespace Sodao.FastSocket.Client
             if (isSuccess)
             {
                 request.SentTime = SocketBase.Utils.Date.UtcNow;
+                this.OnSent(connection, request);
                 return;
             }
 
@@ -286,15 +320,12 @@ namespace Sodao.FastSocket.Client
 
             if (!request.AllowRetry)
             {
-                ThreadPool.QueueUserWorkItem(_ =>
-                {
-                    try { request.SetException(new RequestException(RequestException.Errors.SendFaild, request.Name)); }
-                    catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                });
+                this.OnSendFailed(request);
                 return;
             }
 
-            if (DateTime.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds > this._millisecondsSendTimeout)
+            if (SocketBase.Utils.Date.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds >
+                this._millisecondsSendTimeout)
             {
                 //send time out
                 this.OnPendingSendTimeout(request);
@@ -309,10 +340,12 @@ namespace Sodao.FastSocket.Client
         /// </summary>
         /// <param name="connection"></param>
         /// <param name="e"></param>
-        protected override void OnMessageReceived(SocketBase.IConnection connection, SocketBase.MessageReceivedEventArgs e)
+        protected override void OnMessageReceived(SocketBase.IConnection connection,
+            SocketBase.MessageReceivedEventArgs e)
         {
             base.OnMessageReceived(connection, e);
 
+            //process message
             int readlength;
             TMessage message = null;
             try { message = this._protocol.Parse(connection, e.Buffer, out readlength); }
@@ -326,23 +359,10 @@ namespace Sodao.FastSocket.Client
 
             if (message != null)
             {
-                Request<TMessage> r = null;
-                if (this._receivingQueue.TryRemove(message.SeqId, out r))
-                {
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        try { r.SetResult(message); }
-                        catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                    });
-                }
-                else
-                {
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        try { this.HandleUnknowMessage(connection, message); }
-                        catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
-                    });
-                }
+                Request<TMessage> request = null;
+                if (this._receivingQueue.TryRemove(message.SeqId, out request))
+                    this.OnReceived(connection, request, message);
+                else this.OnReceivedUnknowMessage(connection, message);
             }
 
             //continue receiveing..
@@ -411,6 +431,15 @@ namespace Sodao.FastSocket.Client
             {
                 if (request == null) throw new ArgumentNullException("request");
                 this._queue.Enqueue(request);
+            }
+            /// <summary>
+            /// TryDequeue
+            /// </summary>
+            /// <param name="request"></param>
+            /// <returns></returns>
+            public bool TryDequeue(out Request<TMessage> request)
+            {
+                return this._queue.TryDequeue(out request);
             }
             #endregion
         }
@@ -538,11 +567,11 @@ namespace Sodao.FastSocket.Client
             /// <summary>
             /// node connected event
             /// </summary>
-            public event Action<Node, SocketBase.IConnection> NodeConnected;
+            public event Action<string, SocketBase.IConnection> Connected;
             /// <summary>
             /// node already event
             /// </summary>
-            public event Action<Node, SocketBase.IConnection> NodeAlreadyAvailable;
+            public event Action<string, SocketBase.IConnection> Already;
             #endregion
 
             #region Members
@@ -683,8 +712,8 @@ namespace Sodao.FastSocket.Client
                 };
 
                 //fire node connected event.
-                if (this.NodeConnected != null)
-                    this.NodeConnected(node, connection);
+                if (this.Connected != null)
+                    this.Connected(node.Name, connection);
 
                 if (node.InitFunc == null)
                 {
@@ -698,8 +727,8 @@ namespace Sodao.FastSocket.Client
                     if (isExists)
                     {
                         //fire node already event.
-                        if (this.NodeAlreadyAvailable != null)
-                            this.NodeAlreadyAvailable(node, connection);
+                        if (this.Already != null)
+                            this.Already(node.Name, connection);
                     }
                     else connection.BeginDisconnect();
 
@@ -725,8 +754,8 @@ namespace Sodao.FastSocket.Client
                         if (isExists)
                         {
                             //fire node already event.
-                            if (this.NodeAlreadyAvailable != null)
-                                this.NodeAlreadyAvailable(node, connection);
+                            if (this.Already != null)
+                                this.Already(node.Name, connection);
                         }
                         else connection.BeginDisconnect();
                     });
