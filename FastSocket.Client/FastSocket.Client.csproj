@@ -37,10 +37,12 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Messaging\CommandLineMessage.cs" />
     <Compile Include="Messaging\IMessage.cs" />
     <Compile Include="Messaging\ThriftMessage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Protocol\BadProtocolException.cs" />
+    <Compile Include="Protocol\CommandLineProtocol.cs" />
     <Compile Include="Protocol\IProtocol.cs" />
     <Compile Include="Protocol\ThriftProtocol.cs" />
     <Compile Include="Request.cs" />
