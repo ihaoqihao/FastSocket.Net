@@ -14,6 +14,10 @@ namespace Sodao.FastSocket.Client.Protocol
         /// </summary>
         bool IsAsync { get; }
         /// <summary>
+        /// 当IsAsync=false时，表示默认的seqId
+        /// </summary>
+        int DefaultSyncSeqId { get; }
+        /// <summary>
         /// parse
         /// </summary>
         /// <param name="connection"></param>

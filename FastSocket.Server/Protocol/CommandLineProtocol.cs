@@ -37,13 +37,13 @@ namespace Sodao.FastSocket.Server.Protocol
                 {
                     readlength = i + 2 - buffer.Offset;
 
-                    if (readlength == 2) return null;
+                    if (readlength == 2) return new Messaging.CommandLineMessage(string.Empty);
                     if (readlength > maxMessageSize) throw new BadProtocolException("message is too long");
 
                     string command = Encoding.UTF8.GetString(buffer.Array, buffer.Offset, readlength - 2);
                     var arr = command.Split(SPLITER, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (arr.Length == 0) return null;
+                    if (arr.Length == 0) return new Messaging.CommandLineMessage(string.Empty);
                     if (arr.Length == 1) return new Messaging.CommandLineMessage(arr[0]);
                     return new Messaging.CommandLineMessage(arr[0], arr.Skip(1).ToArray());
                 }

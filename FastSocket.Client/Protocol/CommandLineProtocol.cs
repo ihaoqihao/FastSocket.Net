@@ -15,8 +15,17 @@ namespace Sodao.FastSocket.Client.Protocol
         /// <summary>
         /// return false
         /// </summary>
-        public bool IsAsync { get { return false; } }
-
+        public bool IsAsync
+        {
+            get { return false; }
+        }
+        /// <summary>
+        /// return 1
+        /// </summary>
+        public int DefaultSyncSeqId
+        {
+            get { return 1; }
+        }
         /// <summary>
         /// parse
         /// </summary>
@@ -41,12 +50,12 @@ namespace Sodao.FastSocket.Client.Protocol
                 {
                     readlength = i + 2 - buffer.Offset;
 
-                    if (readlength == 2) return null;
+                    if (readlength == 2) return new Messaging.CommandLineMessage(1, string.Empty);
 
                     string command = Encoding.UTF8.GetString(buffer.Array, buffer.Offset, readlength - 2);
                     var arr = command.Split(SPLITER, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (arr.Length == 0) return null;
+                    if (arr.Length == 0) return new Messaging.CommandLineMessage(1, string.Empty);
                     if (arr.Length == 1) return new Messaging.CommandLineMessage(1, arr[0]);
                     return new Messaging.CommandLineMessage(1, arr[0], arr.Skip(1).ToArray());
                 }

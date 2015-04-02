@@ -25,10 +25,10 @@ namespace Sodao.FastSocket.Server.Messaging
         /// </summary>
         /// <param name="cmdName"></param>
         /// <param name="parameters"></param>
-        /// <exception cref="ArgumentNullException">cmdName is null or empty</exception>
+        /// <exception cref="ArgumentNullException">cmdName is null</exception>
         public CommandLineMessage(string cmdName, params string[] parameters)
         {
-            if (string.IsNullOrEmpty(cmdName)) throw new ArgumentNullException("cmdName");
+            if (cmdName == null) throw new ArgumentNullException("cmdName");
 
             this.CmdName = cmdName;
             this.Parameters = parameters;

@@ -16,6 +16,13 @@ namespace Sodao.FastSocket.Client.Protocol
             get { return true; }
         }
         /// <summary>
+        /// throw NotImplementedException ex
+        /// </summary>
+        public int DefaultSyncSeqId
+        {
+            get { throw new NotImplementedException(); }
+        }
+        /// <summary>
         /// find response
         /// </summary>
         /// <param name="connection"></param>

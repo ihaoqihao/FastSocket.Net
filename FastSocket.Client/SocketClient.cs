@@ -134,6 +134,14 @@ namespace Sodao.FastSocket.Client
             connection.BeginSend(request);
         }
         /// <summary>
+        /// try send next request
+        /// </summary>
+        public void TrySendNext()
+        {
+            Request<TMessage> request = null;
+            if (this._pendingQueue.TryDequeue(out request)) this.Send(request);
+        }
+        /// <summary>
         /// 产生不重复的seqId
         /// </summary>
         /// <returns></returns>
@@ -150,18 +158,13 @@ namespace Sodao.FastSocket.Client
         /// <param name="onException"></param>
         /// <param name="onResult"></param>
         /// <returns></returns>
-        public Request<TMessage> NewRequest(string name,
-            byte[] payload,
+        public Request<TMessage> NewRequest(string name, byte[] payload,
             int millisecondsReceiveTimeout,
-            Action<Exception> onException,
-            Action<TMessage> onResult)
+            Action<Exception> onException, Action<TMessage> onResult)
         {
-            return new Request<TMessage>(this.NextRequestSeqId(),
-                name,
-                payload,
-                millisecondsReceiveTimeout,
-                onException,
-                onResult);
+            var seqId = this._protocol.IsAsync ? this.NextRequestSeqId() : this._protocol.DefaultSyncSeqId;
+            return new Request<TMessage>(seqId, name, payload,
+                millisecondsReceiveTimeout, onException, onResult);
         }
         #endregion
 
@@ -206,8 +209,7 @@ namespace Sodao.FastSocket.Client
         /// <param name="connection"></param>
         /// <param name="request"></param>
         /// <param name="message"></param>
-        protected virtual void OnReceived(SocketBase.IConnection connection,
-            Request<TMessage> request, TMessage message)
+        protected virtual void OnReceived(SocketBase.IConnection connection, Request<TMessage> request, TMessage message)
         {
             ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -217,9 +219,10 @@ namespace Sodao.FastSocket.Client
 
             if (!this._protocol.IsAsync)
             {
-                Request<TMessage> next;
-                if (this._pendingQueue.TryDequeue(out next)) connection.BeginSend(next);
-                else this._connectionPool.Release(connection);
+                //release connection
+                this._connectionPool.Release(connection);
+                //try send next request
+                this.TrySendNext();
             }
         }
         /// <summary>
@@ -315,7 +318,7 @@ namespace Sodao.FastSocket.Client
             }
 
             Request<TMessage> removed;
-            if (this._receivingQueue.TryRemove(request.SeqId, out removed))
+            if (this._receivingQueue.TryRemove(connection.ConnectionID, request.SeqId, out removed))
                 removed.SendConnection = null;
 
             if (!request.AllowRetry)
@@ -360,7 +363,7 @@ namespace Sodao.FastSocket.Client
             if (message != null)
             {
                 Request<TMessage> request = null;
-                if (this._receivingQueue.TryRemove(message.SeqId, out request))
+                if (this._receivingQueue.TryRemove(connection.ConnectionID, message.SeqId, out request))
                     this.OnReceived(connection, request, message);
                 else this.OnReceivedUnknowMessage(connection, message);
             }
@@ -416,8 +419,8 @@ namespace Sodao.FastSocket.Client
                         this._client.OnPendingSendTimeout(request);
                     }
 
-                    this._timer.Change(50, 0);
-                }, null, 50, 0);
+                    this._timer.Change(500, 500);
+                }, null, 500, 500);
             }
             #endregion
 
@@ -450,10 +453,18 @@ namespace Sodao.FastSocket.Client
         private class ReceivingQueue
         {
             #region Private Members
+            /// <summary>
+            /// socket client
+            /// </summary>
             private readonly SocketClient<TMessage> _client = null;
-
-            private readonly ConcurrentDictionary<int, Request<TMessage>> _dic =
-                new ConcurrentDictionary<int, Request<TMessage>>();
+            /// <summary>
+            /// key:connectionId:request.SeqId
+            /// </summary>
+            private readonly ConcurrentDictionary<string, Request<TMessage>> _dic =
+                new ConcurrentDictionary<string, Request<TMessage>>();
+            /// <summary>
+            /// timer for check receive timeout
+            /// </summary>
             private readonly Timer _timer = null;
             #endregion
 
@@ -482,8 +493,30 @@ namespace Sodao.FastSocket.Client
                             this._client.OnReceiveTimeout(request);
                     }
 
-                    this._timer.Change(500, 0);
-                }, null, 500, 0);
+                    this._timer.Change(500, 500);
+                }, null, 500, 500);
+            }
+            #endregion
+
+            #region Private Methods
+            /// <summary>
+            /// to key
+            /// </summary>
+            /// <param name="request"></param>
+            /// <returns></returns>
+            private string ToKey(Request<TMessage> request)
+            {
+                return this.ToKey(request.SendConnection.ConnectionID, request.SeqId);
+            }
+            /// <summary>
+            /// to key
+            /// </summary>
+            /// <param name="connectionId"></param>
+            /// <param name="seqId"></param>
+            /// <returns></returns>
+            private string ToKey(long connectionId, int seqId)
+            {
+                return string.Concat(connectionId.ToString(), "/", seqId.ToString());
             }
             #endregion
 
@@ -495,17 +528,18 @@ namespace Sodao.FastSocket.Client
             /// <returns></returns>
             public bool TryAdd(Request<TMessage> request)
             {
-                return this._dic.TryAdd(request.SeqId, request);
+                return this._dic.TryAdd(this.ToKey(request), request);
             }
             /// <summary>
             /// try remove
             /// </summary>
-            /// <param name="seqID"></param>
+            /// <param name="connectionId"></param>
+            /// <param name="seqId"></param>
             /// <param name="request"></param>
             /// <returns></returns>
-            public bool TryRemove(int seqID, out Request<TMessage> request)
+            public bool TryRemove(long connectionId, int seqId, out Request<TMessage> request)
             {
-                return this._dic.TryRemove(seqID, out request);
+                return this._dic.TryRemove(this.ToKey(connectionId, seqId), out request);
             }
             #endregion
         }
@@ -735,30 +769,29 @@ namespace Sodao.FastSocket.Client
                     return;
                 }
 
-                node.InitFunc(new SendContext(connection))
-                    .ContinueWith(c =>
+                node.InitFunc(new SendContext(connection, false)).ContinueWith(c =>
+                {
+                    if (c.IsFaulted)
                     {
-                        if (c.IsFaulted)
-                        {
-                            connection.BeginDisconnect(c.Exception.InnerException);
-                            return;
-                        }
+                        connection.BeginDisconnect(c.Exception.InnerException);
+                        return;
+                    }
 
-                        bool isExists;
-                        lock (this)
-                        {
-                            if (isExists = this._dicNodes.ContainsKey(node.Id))
-                                this._dicConnections[node.Id] = connection;
-                        }
+                    bool isExists;
+                    lock (this)
+                    {
+                        if (isExists = this._dicNodes.ContainsKey(node.Id))
+                            this._dicConnections[node.Id] = connection;
+                    }
 
-                        if (isExists)
-                        {
-                            //fire node already event.
-                            if (this.Already != null)
-                                this.Already(node.Name, connection);
-                        }
-                        else connection.BeginDisconnect();
-                    });
+                    if (isExists)
+                    {
+                        //fire node already event.
+                        if (this.Already != null)
+                            this.Already(node.Name, connection);
+                    }
+                    else connection.BeginDisconnect();
+                });
             }
             #endregion
         }
