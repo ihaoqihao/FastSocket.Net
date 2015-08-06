@@ -101,13 +101,7 @@ namespace Sodao.FastSocket.Server
             e.AcceptSocket = null;
 
             if (accepted != null)
-            {
-                accepted.NoDelay = true;
-                accepted.ReceiveBufferSize = this._host.SocketBufferSize;
-                accepted.SendBufferSize = this._host.SocketBufferSize;
-                accepted.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
                 this.Accepted(this, this._host.NewConnection(accepted));
-            }
 
             //continue to accept!
             this.AcceptAsync(this._socket);

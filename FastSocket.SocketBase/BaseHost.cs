@@ -65,6 +65,11 @@ namespace Sodao.FastSocket.SocketBase
         public virtual IConnection NewConnection(Socket socket)
         {
             if (socket == null) throw new ArgumentNullException("socket");
+
+            socket.NoDelay = true;
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+            socket.ReceiveBufferSize = this.SocketBufferSize;
+            socket.SendBufferSize = this.SocketBufferSize;
             return new DefaultConnection(this.NextConnectionID(), socket, this);
         }
         /// <summary>
@@ -138,8 +143,8 @@ namespace Sodao.FastSocket.SocketBase
         protected virtual void OnConnected(IConnection connection)
         {
             Log.Trace.Debug(string.Concat("socket connected, id:", connection.ConnectionID.ToString(),
-                ", remot endPoint:", connection.RemoteEndPoint == null ? string.Empty : connection.RemoteEndPoint.ToString(),
-                ", local endPoint:", connection.LocalEndPoint == null ? string.Empty : connection.LocalEndPoint.ToString()));
+                ", remot endPoint:", connection.RemoteEndPoint == null ? "unknow" : connection.RemoteEndPoint.ToString(),
+                ", local endPoint:", connection.LocalEndPoint == null ? "unknow" : connection.LocalEndPoint.ToString()));
         }
         /// <summary>
         /// OnStartSending
@@ -175,10 +180,9 @@ namespace Sodao.FastSocket.SocketBase
         protected virtual void OnDisconnected(IConnection connection, Exception ex)
         {
             this._listConnections.Remove(connection.ConnectionID);
-
             Log.Trace.Debug(string.Concat("socket disconnected, id:", connection.ConnectionID.ToString(),
-                ", remot endPoint:", connection.RemoteEndPoint == null ? string.Empty : connection.RemoteEndPoint.ToString(),
-                ", local endPoint:", connection.LocalEndPoint == null ? string.Empty : connection.LocalEndPoint.ToString(),
+                ", remot endPoint:", connection.RemoteEndPoint == null ? "unknow" : connection.RemoteEndPoint.ToString(),
+                ", local endPoint:", connection.LocalEndPoint == null ? "unknow" : connection.LocalEndPoint.ToString(),
                 ex == null ? string.Empty : string.Concat(", reason is: ", ex.ToString())));
         }
         /// <summary>
@@ -660,7 +664,12 @@ namespace Sodao.FastSocket.SocketBase
                     this._socket.Shutdown(SocketShutdown.Both);
                     completedAsync = this._socket.DisconnectAsync(e);
                 }
-                catch (Exception ex) { Log.Trace.Error(ex.Message, ex); }
+                catch (Exception ex)
+                {
+                    Log.Trace.Error(ex.Message, ex);
+                    ThreadPool.QueueUserWorkItem(_ => this.DisconnectAsyncCompleted(this, e));
+                    return;
+                }
 
                 if (!completedAsync)
                     ThreadPool.QueueUserWorkItem(_ => this.DisconnectAsyncCompleted(this, e));

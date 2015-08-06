@@ -176,7 +176,7 @@ namespace Sodao.FastSocket.Client
         /// <param name="connection"></param>
         protected virtual void OnEndPointConnected(string name, SocketBase.IConnection connection)
         {
-            this.RegisterConnection(connection);
+            base.RegisterConnection(connection);
         }
         /// <summary>
         /// endPoint already available
@@ -327,8 +327,7 @@ namespace Sodao.FastSocket.Client
                 return;
             }
 
-            if (SocketBase.Utils.Date.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds >
-                this._millisecondsSendTimeout)
+            if (SocketBase.Utils.Date.UtcNow.Subtract(request.CreatedTime).TotalMilliseconds > this._millisecondsSendTimeout)
             {
                 //send time out
                 this.OnPendingSendTimeout(request);
@@ -506,6 +505,7 @@ namespace Sodao.FastSocket.Client
             /// <returns></returns>
             private string ToKey(Request<TMessage> request)
             {
+                if (request.SendConnection == null) throw new ArgumentNullException("request.SendConnection");
                 return this.ToKey(request.SendConnection.ConnectionID, request.SeqId);
             }
             /// <summary>
@@ -726,10 +726,6 @@ namespace Sodao.FastSocket.Client
                     return;
                 }
 
-                socket.NoDelay = true;
-                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-                socket.ReceiveBufferSize = this._host.SocketBufferSize;
-                socket.SendBufferSize = this._host.SocketBufferSize;
                 var connection = this._host.NewConnection(socket);
 
                 connection.Disconnected += (conn, ex) =>

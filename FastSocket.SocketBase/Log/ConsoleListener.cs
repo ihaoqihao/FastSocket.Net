@@ -13,7 +13,7 @@ namespace Sodao.FastSocket.SocketBase.Log
         /// <param name="message"></param>
         public void Debug(string message)
         {
-            Console.WriteLine(string.Concat(message, Environment.NewLine));
+            Console.WriteLine(string.Concat("debug: ", message, Environment.NewLine));
         }
         /// <summary>
         /// error
@@ -22,7 +22,7 @@ namespace Sodao.FastSocket.SocketBase.Log
         /// <param name="ex"></param>
         public void Error(string message, Exception ex)
         {
-            Console.WriteLine(string.Concat(message, Environment.NewLine, ex.ToString(), Environment.NewLine));
+            Console.WriteLine(string.Concat("error: ", message, Environment.NewLine, ex.ToString(), Environment.NewLine));
         }
         /// <summary>
         /// info
@@ -30,7 +30,7 @@ namespace Sodao.FastSocket.SocketBase.Log
         /// <param name="message"></param>
         public void Info(string message)
         {
-            Console.WriteLine(string.Concat(message, Environment.NewLine));
+            Console.WriteLine(string.Concat("info: ", message, Environment.NewLine));
         }
     }
 }
