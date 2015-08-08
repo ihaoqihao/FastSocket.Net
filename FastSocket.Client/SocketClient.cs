@@ -154,7 +154,7 @@ namespace Sodao.FastSocket.Client
         /// 产生不重复的seqId
         /// </summary>
         /// <returns></returns>
-        public int NextRequestSeqId()
+        public int NextRequestSeqID()
         {
             return Interlocked.Increment(ref this._seqId) & 0x7fffffff;
         }
@@ -171,7 +171,7 @@ namespace Sodao.FastSocket.Client
             int millisecondsReceiveTimeout,
             Action<Exception> onException, Action<TMessage> onResult)
         {
-            var seqId = this._protocol.IsAsync ? this.NextRequestSeqId() : this._protocol.DefaultSyncSeqId;
+            var seqId = this._protocol.IsAsync ? this.NextRequestSeqID() : this._protocol.DefaultSyncSeqId;
             return new Request<TMessage>(seqId, name, payload,
                 millisecondsReceiveTimeout, onException, onResult);
         }
