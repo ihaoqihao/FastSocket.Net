@@ -20,13 +20,15 @@ namespace Client
             //建立50个socket连接
             for (int i = 0; i < 50; i++)
             {
-                client.TryRegisterEndPoint(i.ToString(), new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1500),
-                    context =>
+                client.TryRegisterEndPoint(i.ToString(), new[] { new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1500) },
+                    connection =>
                     {
                         var source = new TaskCompletionSource<bool>();
-                        context.Send(client.NewRequest("init", Encoding.UTF8.GetBytes("init" + System.Environment.NewLine), 3000,
+                        var request = client.NewRequest("init", Encoding.UTF8.GetBytes("init" + System.Environment.NewLine), 3000,
                             ex => source.TrySetException(ex),
-                            message => source.TrySetResult(true)));
+                            message => source.TrySetResult(true));
+                        request.AllowRetry = false;
+                        connection.BeginSend(request);
                         return source.Task;
                     });
             }

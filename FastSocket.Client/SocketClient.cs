@@ -95,12 +95,12 @@ namespace Sodao.FastSocket.Client
         /// try register endPoint
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="remoteEP"></param>
+        /// <param name="arrRemoteEP"></param>
         /// <param name="initFunc"></param>
         /// <returns></returns>
-        public bool TryRegisterEndPoint(string name, EndPoint remoteEP, Func<SendContext, Task> initFunc = null)
+        public bool TryRegisterEndPoint(string name, EndPoint[] arrRemoteEP, Func<SocketBase.IConnection, Task> initFunc = null)
         {
-            return this._endPointManager.TryRegister(name, remoteEP, initFunc);
+            return this._endPointManager.TryRegister(name, arrRemoteEP, initFunc);
         }
         /// <summary>
         /// un register endPoint
@@ -115,7 +115,7 @@ namespace Sodao.FastSocket.Client
         /// get all registered endPoint
         /// </summary>
         /// <returns></returns>
-        public KeyValuePair<string, EndPoint>[] GetAllRegisteredEndPoint()
+        public KeyValuePair<string, EndPoint[]>[] GetAllRegisteredEndPoint()
         {
             return this._endPointManager.ToArray();
         }
@@ -132,6 +132,15 @@ namespace Sodao.FastSocket.Client
                 return;
             }
             connection.BeginSend(request);
+        }
+        /// <summary>
+        /// send packet
+        /// </summary>
+        /// <param name="packet"></param>
+        public void Send(SocketBase.Packet packet)
+        {
+            SocketBase.IConnection connection = null;
+            if (this._connectionPool.TryAcquire(out connection)) connection.BeginSend(packet);
         }
         /// <summary>
         /// try send next request
@@ -296,6 +305,8 @@ namespace Sodao.FastSocket.Client
             base.OnStartSending(connection, packet);
 
             var request = packet as Request<TMessage>;
+            if (request == null) return;
+
             request.SendConnection = connection;
             this._receivingQueue.TryAdd(request);
         }
@@ -310,6 +321,8 @@ namespace Sodao.FastSocket.Client
             base.OnSendCallback(connection, packet, isSuccess);
 
             var request = packet as Request<TMessage>;
+            if (request == null) return;
+
             if (isSuccess)
             {
                 request.SentTime = SocketBase.Utils.Date.UtcNow;
@@ -561,13 +574,13 @@ namespace Sodao.FastSocket.Client
             /// </summary>
             public readonly string Name;
             /// <summary>
-            /// remote endPoint
+            /// remote endPoint array
             /// </summary>
-            public readonly EndPoint RemoteEP;
+            public readonly EndPoint[] ArrRemoteEP;
             /// <summary>
             /// init function
             /// </summary>
-            public readonly Func<SendContext, Task> InitFunc;
+            public readonly Func<SocketBase.IConnection, Task> InitFunc;
             #endregion
 
             #region Constructors
@@ -575,18 +588,18 @@ namespace Sodao.FastSocket.Client
             /// new
             /// </summary>
             /// <param name="name"></param>
-            /// <param name="remoteEP"></param>
+            /// <param name="arrRemoteEP"></param>
             /// <param name="initFunc"></param>
             /// <exception cref="ArgumentNullException">name is null or empty</exception>
-            /// <exception cref="ArgumentNullException">remoteEP</exception>
-            public Node(string name, EndPoint remoteEP, Func<SendContext, Task> initFunc)
+            /// <exception cref="ArgumentNullException">arrRemoteEP is null or empty</exception>
+            public Node(string name, EndPoint[] arrRemoteEP, Func<SocketBase.IConnection, Task> initFunc)
             {
                 if (string.IsNullOrEmpty(name)) throw new ArgumentNullException("name");
-                if (remoteEP == null) throw new ArgumentNullException("remoteEP");
+                if (arrRemoteEP == null || arrRemoteEP.Length == 0) throw new ArgumentNullException("arrRemoteEP");
 
                 this.Id = Interlocked.Increment(ref NODE_ID);
                 this.Name = name;
-                this.RemoteEP = remoteEP;
+                this.ArrRemoteEP = arrRemoteEP;
                 this.InitFunc = initFunc;
             }
             #endregion
@@ -641,16 +654,18 @@ namespace Sodao.FastSocket.Client
             /// try register
             /// </summary>
             /// <param name="name"></param>
-            /// <param name="remoteEP"></param>
+            /// <param name="arrRemoteEP"></param>
             /// <param name="initFunc"></param>
             /// <returns></returns>
-            public bool TryRegister(string name, EndPoint remoteEP, Func<SendContext, Task> initFunc)
+            public bool TryRegister(string name, EndPoint[] arrRemoteEP, Func<SocketBase.IConnection, Task> initFunc)
             {
                 Node node = null;
                 lock (this)
                 {
-                    if (this._dicNodes.Values.FirstOrDefault(c => c.Name == name) != null) return false;
-                    node = new Node(name, remoteEP, initFunc);
+                    if (this._dicNodes.Values.FirstOrDefault(c => c.Name == name) != null)
+                        return false;
+
+                    node = new Node(name, arrRemoteEP, initFunc);
                     this._dicNodes[node.Id] = node;
                 }
 
@@ -681,13 +696,11 @@ namespace Sodao.FastSocket.Client
             /// to array
             /// </summary>
             /// <returns></returns>
-            public KeyValuePair<string, EndPoint>[] ToArray()
+            public KeyValuePair<string, EndPoint[]>[] ToArray()
             {
                 lock (this)
-                {
-                    return this._dicNodes.Values
-                        .Select(c => new KeyValuePair<string, EndPoint>(c.Name, c.RemoteEP)).ToArray();
-                }
+                    return this._dicNodes.Values.Select(c =>
+                        new KeyValuePair<string, EndPoint[]>(c.Name, c.ArrRemoteEP)).ToArray();
             }
             #endregion
 
@@ -698,7 +711,10 @@ namespace Sodao.FastSocket.Client
             /// <param name="node"></param>
             private void Connect(Node node)
             {
-                SocketConnector.Connect(node.RemoteEP).ContinueWith(task => this.ConnectCallback(node, task));
+                var endPoint = node.ArrRemoteEP.Length == 1 ?
+                    node.ArrRemoteEP[0] :
+                    node.ArrRemoteEP[(Guid.NewGuid().GetHashCode() & int.MaxValue) % node.ArrRemoteEP.Length];
+                SocketConnector.Connect(endPoint).ContinueWith(task => this.ConnectCallback(node, task));
             }
             /// <summary>
             /// connect callback
@@ -765,7 +781,7 @@ namespace Sodao.FastSocket.Client
                     return;
                 }
 
-                node.InitFunc(new SendContext(connection, false)).ContinueWith(c =>
+                node.InitFunc(connection).ContinueWith(c =>
                 {
                     if (c.IsFaulted)
                     {

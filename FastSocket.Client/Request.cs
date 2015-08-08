@@ -12,7 +12,7 @@ namespace Sodao.FastSocket.Client
         /// <summary>
         /// default is allow retry send.
         /// </summary>
-        internal bool AllowRetry = true;
+        public bool AllowRetry = true;
         /// <summary>
         /// get or set send connection
         /// </summary>
@@ -86,11 +86,11 @@ namespace Sodao.FastSocket.Client
         /// <summary>
         /// set result
         /// </summary>
-        /// <param name="response"></param>
+        /// <param name="message"></param>
         /// <returns></returns>
-        public bool SetResult(TMessage response)
+        public bool SetResult(TMessage message)
         {
-            this._onResult(response);
+            this._onResult(message);
             return true;
         }
         #endregion
