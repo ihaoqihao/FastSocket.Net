@@ -9,6 +9,6 @@ namespace Sodao.FastSocket.Client.Messaging
         /// <summary>
         /// message id
         /// </summary>
-        int SeqId { get; }
+        int SeqID { get; }
     }
 }

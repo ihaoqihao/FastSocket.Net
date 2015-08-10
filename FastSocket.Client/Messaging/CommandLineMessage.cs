@@ -19,21 +19,21 @@ namespace Sodao.FastSocket.Client.Messaging
         /// <summary>
         /// new
         /// </summary>
-        /// <param name="seqId"></param>
+        /// <param name="seqID"></param>
         /// <param name="cmdName"></param>
         /// <param name="parameters"></param>
-        public CommandLineMessage(int seqId, string cmdName, params string[] parameters)
+        public CommandLineMessage(int seqID, string cmdName, params string[] parameters)
         {
             if (cmdName == null) throw new ArgumentNullException("cmdName");
 
-            this.SeqId = seqId;
+            this.SeqID = seqID;
             this.CmdName = cmdName;
             this.Parameters = parameters;
         }
 
         /// <summary>
-        /// get seqId
+        /// get seqID
         /// </summary>
-        public int SeqId { get; private set; }
+        public int SeqID { get; private set; }
     }
 }

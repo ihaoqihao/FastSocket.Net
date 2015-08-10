@@ -22,7 +22,7 @@ namespace Sodao.FastSocket.Client.Protocol
         /// <summary>
         /// return 1
         /// </summary>
-        public int DefaultSyncSeqId
+        public int DefaultSyncSeqID
         {
             get { return 1; }
         }

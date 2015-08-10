@@ -7,9 +7,9 @@ namespace Sodao.FastSocket.Client.Messaging
     public class ThriftMessage : IMessage
     {
         /// <summary>
-        /// seqId
+        /// seqID
         /// </summary>
-        private readonly int _seqId;
+        private readonly int _seqID;
         /// <summary>
         /// payload
         /// </summary>
@@ -18,20 +18,20 @@ namespace Sodao.FastSocket.Client.Messaging
         /// <summary>
         /// new
         /// </summary>
-        /// <param name="seqId"></param>
+        /// <param name="seqID"></param>
         /// <param name="buffer"></param>
-        public ThriftMessage(int seqId, byte[] buffer)
+        public ThriftMessage(int seqID, byte[] buffer)
         {
-            this._seqId = seqId;
+            this._seqID = seqID;
             this.Payload = buffer;
         }
 
         /// <summary>
         /// get seqID
         /// </summary>
-        public int SeqId
+        public int SeqID
         {
-            get { return this._seqId; }
+            get { return this._seqID; }
         }
     }
 }
