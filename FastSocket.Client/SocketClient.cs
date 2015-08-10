@@ -264,14 +264,14 @@ namespace Sodao.FastSocket.Client
         /// <param name="request"></param>
         protected virtual void OnReceiveTimeout(Request<TMessage> request)
         {
+            if (!this._protocol.IsAsync)
+                request.SendConnection.BeginDisconnect();
+
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try { request.SetException(new RequestException(RequestException.Errors.ReceiveTimeout, request.Name)); }
                 catch (Exception ex) { SocketBase.Log.Trace.Error(ex.Message, ex); }
             });
-
-            if (!this._protocol.IsAsync)
-                request.SendConnection.BeginDisconnect();
         }
         #endregion
 
