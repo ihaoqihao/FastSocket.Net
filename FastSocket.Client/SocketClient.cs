@@ -16,6 +16,13 @@ namespace Sodao.FastSocket.Client
     public class SocketClient<TMessage> : SocketBase.BaseHost
         where TMessage : class, Messaging.IMessage
     {
+        #region Events
+        /// <summary>
+        /// received unknow message
+        /// </summary>
+        public event Action<SocketBase.IConnection, TMessage> ReceivedUnknowMessage;
+        #endregion
+
         #region Private Members
         private int _seqID = 0;
         private readonly Protocol.IProtocol<TMessage> _protocol = null;
@@ -203,6 +210,8 @@ namespace Sodao.FastSocket.Client
         /// <param name="message"></param>
         protected virtual void OnReceivedUnknowMessage(SocketBase.IConnection connection, TMessage message)
         {
+            if (this.ReceivedUnknowMessage != null)
+                this.ReceivedUnknowMessage(connection, message);
         }
         /// <summary>
         /// on request sent
