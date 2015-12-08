@@ -35,7 +35,7 @@ namespace Server
         public override void OnConnected(IConnection connection)
         {
             base.OnConnected(connection);
-            Console.WriteLine(connection.RemoteEndPoint.ToString() + " connected");
+            Console.WriteLine(connection.RemoteEndPoint.ToString() + " " + connection.ConnectionID.ToString() + " connected");
             connection.BeginReceive();
         }
 

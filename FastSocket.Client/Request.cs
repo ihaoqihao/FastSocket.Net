@@ -10,9 +10,9 @@ namespace Sodao.FastSocket.Client
     {
         #region Members
         /// <summary>
-        /// default is allow retry send.
+        /// default is don't allow retry send.
         /// </summary>
-        public bool AllowRetry = true;
+        internal bool AllowRetry = false;
         /// <summary>
         /// get or set send connection
         /// </summary>

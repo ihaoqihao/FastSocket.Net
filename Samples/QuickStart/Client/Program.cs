@@ -27,17 +27,17 @@ namespace Client
                         var request = client.NewRequest("init", Encoding.UTF8.GetBytes("init" + System.Environment.NewLine), 3000,
                             ex => source.TrySetException(ex),
                             message => source.TrySetResult(true));
-                        request.AllowRetry = false;
                         connection.BeginSend(request);
                         return source.Task;
                     });
             }
 
             //100个同时发送
-            for (int i = 0; i < 100; i++)
+            for (int i = 100; i < 0; i++)
             {
                 Task.Factory.StartNew(() => Do(client));
             }
+
             Console.ReadLine();
         }
 

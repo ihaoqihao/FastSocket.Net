@@ -51,10 +51,13 @@ namespace Sodao.FastSocket.Client
         /// <param name="payload"></param>
         /// <param name="onException"></param>
         /// <param name="onResult"></param>
+        /// <exception cref="ArgumentNullException">payload is null</exception>
+        /// <exception cref="ArgumentNullException">onException is null</exception>
+        /// <exception cref="ArgumentNullException">onResult is null</exception>
         public void Send(string service, string cmdName, int seqID, byte[] payload,
             Action<Exception> onException, Action<byte[]> onResult)
         {
-            if (payload == null || payload.Length == 0) throw new ArgumentNullException("payload");
+            if (payload == null) throw new ArgumentNullException("payload");
             if (onException == null) throw new ArgumentNullException("onException");
             if (onResult == null) throw new ArgumentNullException("onResult");
 

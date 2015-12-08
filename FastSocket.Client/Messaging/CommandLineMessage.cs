@@ -22,6 +22,7 @@ namespace Sodao.FastSocket.Client.Messaging
         /// <param name="seqID"></param>
         /// <param name="cmdName"></param>
         /// <param name="parameters"></param>
+        /// <exception cref="ArgumentNullException">cmdName is null.</exception>
         public CommandLineMessage(int seqID, string cmdName, params string[] parameters)
         {
             if (cmdName == null) throw new ArgumentNullException("cmdName");
