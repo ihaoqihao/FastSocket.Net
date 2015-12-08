@@ -3,7 +3,7 @@
 <p>项目地址:<a href="https://github.com/devhong/FastSocket.Net">https://github.com/devhong/FastSocket.Net</a>&nbsp;</p>
 <p>在Nuget官方源中搜索fastsocket可快速安装引用</p>
 <p>QQ群：257612438</p>
-<p>FastSocket内置了命令行、二进制、thrift协议，基于此开发了Zookeeper, Redis, Thrift等c#异步客户端，接下来将会一一公开。</p>
+<p>FastSocket内置了命令行、二进制、thrift协议，基于此开发了Zookeeper, Redis, Thrift等c#异步客户端。</p>
 Requirements
 ============
 .Net 4.0 or Mono 2.6
