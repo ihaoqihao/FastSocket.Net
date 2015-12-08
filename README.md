@@ -1,6 +1,5 @@
 ﻿Overview
 ========
-<p>FastSocket是一个轻量级易扩展的c#异步socket通信库，项目开始于2011年，经过近3年不断调整与改进，目前在功能和性能上均有不错的表现。</p>
 <p>项目地址:<a href="https://github.com/devhong/FastSocket.Net">https://github.com/devhong/FastSocket.Net</a>&nbsp;</p>
 <p>在Nuget官方源中搜索fastsocket可快速安装引用</p>
 <p>QQ群：257612438</p>
