@@ -15,7 +15,7 @@ Projects using FastSocket.Net
 
 Example Usage
 =============
-<h3>1: 简单的命令行服务</h3>
+<h3>1: 简单的命令行服务.</h3>
 <p>新建控制台项目，添加FastSocket.SocketBase,FastSocket.Server引用</p>
 <p>自定义服务实现MyService</p>
 
